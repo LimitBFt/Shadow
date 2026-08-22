@@ -34,6 +34,8 @@ namespace ShadowPath.Shadow
             Vector3 planeRight = projectionPlane.right;
             Vector3 planeUp = projectionPlane.up;
             Vector3[] vertices = mesh.vertices;
+            float smallProjectedPointRadius = Mathf.Max(0.001f, Mathf.Min(projectedPointRadius, hullPointRadius * 0.5f));
+            float largeHullPointRadius = Mathf.Max(hullPointRadius, smallProjectedPointRadius * 1.75f);
 
             projectedPlanePoints.Clear();
             hullPlanePoints.Clear();
@@ -59,7 +61,7 @@ namespace ShadowPath.Shadow
                 Gizmos.DrawLine(vertexPosition, projectedPoint);
 
                 Gizmos.color = Color.red;
-                Gizmos.DrawSphere(projectedPoint, Mathf.Max(0f, projectedPointRadius));
+                Gizmos.DrawSphere(projectedPoint, smallProjectedPointRadius);
 
                 if (ProjectionPlaneCoordinates.TryWorldToPlane2D(
                         projectedPoint,
@@ -97,7 +99,7 @@ namespace ShadowPath.Shadow
                 }
 
                 Gizmos.color = Color.green;
-                Gizmos.DrawSphere(currentWorldPoint, Mathf.Max(0f, hullPointRadius));
+                Gizmos.DrawSphere(currentWorldPoint, largeHullPointRadius);
 
                 Vector2 nextPoint2D = hullPlanePoints[(i + 1) % hullPlanePoints.Count];
                 if (!ProjectionPlaneCoordinates.TryPlane2DToWorld(
