@@ -5,6 +5,7 @@ namespace ShadowPath.Shadow
 {
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
+    [RequireComponent(typeof(MeshCollider))]
     public class ShadowMeshPreview : MonoBehaviour
     {
         [SerializeField] private Transform lightSource;
@@ -19,7 +20,21 @@ namespace ShadowPath.Shadow
         private readonly List<Vector2> hullPlanePoints = new List<Vector2>();
 
         private MeshFilter meshFilter;
+        private MeshCollider meshCollider;
         private Mesh runtimeMesh;
+
+        private void Awake()
+        {
+            CacheComponents();
+        }
+
+        private void Start()
+        {
+            if (Application.isPlaying)
+            {
+                RebuildPreviewMesh();
+            }
+        }
 
         [ContextMenu("Rebuild Preview Mesh")]
         public bool RebuildPreviewMesh()
@@ -90,23 +105,37 @@ namespace ShadowPath.Shadow
             }
 
             meshFilter.sharedMesh = mesh;
+            RefreshMeshCollider(mesh);
             return true;
         }
 
         private bool TryPrepareForRebuild()
         {
+            CacheComponents();
+            if (meshFilter == null || meshCollider == null)
+            {
+                return false;
+            }
+
             if (lightSource == null || shadowCaster == null || projectionPlane == null)
             {
                 return false;
             }
 
-            meshFilter = GetComponent<MeshFilter>();
+            return IsAlignedWithProjectionPlane();
+        }
+
+        private void CacheComponents()
+        {
             if (meshFilter == null)
             {
-                return false;
+                meshFilter = GetComponent<MeshFilter>();
             }
 
-            return IsAlignedWithProjectionPlane();
+            if (meshCollider == null)
+            {
+                meshCollider = GetComponent<MeshCollider>();
+            }
         }
 
         private bool IsAlignedWithProjectionPlane()
@@ -143,6 +172,22 @@ namespace ShadowPath.Shadow
             return runtimeMesh;
         }
 
+        private void RefreshMeshCollider(Mesh generatedMesh)
+        {
+            CacheComponents();
+
+            if (meshCollider == null)
+            {
+                return;
+            }
+
+            meshCollider.enabled = true;
+            meshCollider.isTrigger = false;
+            meshCollider.convex = true;
+            meshCollider.sharedMesh = null;
+            meshCollider.sharedMesh = generatedMesh;
+        }
+
         private void ClearPreviewMesh()
         {
             if (runtimeMesh != null)
@@ -152,12 +197,22 @@ namespace ShadowPath.Shadow
 
             if (meshFilter == null)
             {
-                meshFilter = GetComponent<MeshFilter>();
+                CacheComponents();
             }
 
             if (meshFilter != null && meshFilter.sharedMesh == runtimeMesh)
             {
                 meshFilter.sharedMesh = null;
+            }
+
+            if (meshCollider == null)
+            {
+                CacheComponents();
+            }
+
+            if (meshCollider != null)
+            {
+                meshCollider.sharedMesh = null;
             }
         }
 
@@ -170,12 +225,22 @@ namespace ShadowPath.Shadow
 
             if (meshFilter == null)
             {
-                meshFilter = GetComponent<MeshFilter>();
+                CacheComponents();
             }
 
             if (meshFilter != null && meshFilter.sharedMesh == runtimeMesh)
             {
                 meshFilter.sharedMesh = null;
+            }
+
+            if (meshCollider == null)
+            {
+                CacheComponents();
+            }
+
+            if (meshCollider != null && meshCollider.sharedMesh == runtimeMesh)
+            {
+                meshCollider.sharedMesh = null;
             }
 
             if (Application.isPlaying)
