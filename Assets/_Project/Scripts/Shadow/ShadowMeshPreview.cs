@@ -13,6 +13,8 @@ namespace ShadowPath.Shadow
         [SerializeField] private Transform projectionPlane;
         [SerializeField] private float surfaceOffset = 0.002f;
         [SerializeField, Min(0.001f)] private float thickness = 0.1f;
+        [SerializeField] private bool autoRebuildWhenLightMoves = true;
+        [SerializeField, Min(0f)] private float movementThreshold = 0.001f;
         [SerializeField] private float hullEpsilon = 0.0001f;
         [SerializeField] private float transformEpsilon = 0.0001f;
 
@@ -22,6 +24,7 @@ namespace ShadowPath.Shadow
         private MeshFilter meshFilter;
         private MeshCollider meshCollider;
         private Mesh runtimeMesh;
+        private Vector3 lastLightPosition;
 
         private void Awake()
         {
@@ -32,8 +35,27 @@ namespace ShadowPath.Shadow
         {
             if (Application.isPlaying)
             {
+                StoreCurrentLightPosition();
                 RebuildPreviewMesh();
             }
+        }
+
+        private void FixedUpdate()
+        {
+            if (!Application.isPlaying || !autoRebuildWhenLightMoves || lightSource == null)
+            {
+                return;
+            }
+
+            Vector3 lightPosition = lightSource.position;
+            float threshold = Mathf.Max(0f, movementThreshold);
+            if ((lightPosition - lastLightPosition).sqrMagnitude <= threshold * threshold)
+            {
+                return;
+            }
+
+            RebuildPreviewMesh();
+            lastLightPosition = lightPosition;
         }
 
         [ContextMenu("Rebuild Preview Mesh")]
@@ -135,6 +157,14 @@ namespace ShadowPath.Shadow
             if (meshCollider == null)
             {
                 meshCollider = GetComponent<MeshCollider>();
+            }
+        }
+
+        private void StoreCurrentLightPosition()
+        {
+            if (lightSource != null)
+            {
+                lastLightPosition = lightSource.position;
             }
         }
 
