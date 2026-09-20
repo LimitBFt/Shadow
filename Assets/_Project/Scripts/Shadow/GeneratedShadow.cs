@@ -10,6 +10,8 @@ namespace ShadowPath.Shadow
     {
         private readonly List<Vector2> projectedPlanePoints = new List<Vector2>();
         private readonly List<Vector2> hullPlanePoints = new List<Vector2>();
+        // ProjectionPlane local 2D coordinates: X is plane right, Y is plane up.
+        private readonly List<Vector2> currentHull2D = new List<Vector2>();
 
         private ShadowCaster caster;
         private Transform lightSource;
@@ -21,6 +23,13 @@ namespace ShadowPath.Shadow
         private MeshRenderer meshRenderer;
         private MeshCollider meshCollider;
         private Mesh runtimeMesh;
+        [SerializeField] private bool hasValidGeometry;
+        [SerializeField] private int geometryVersion;
+
+        public IReadOnlyList<Vector2> CurrentHull2D => currentHull2D;
+        public bool HasValidGeometry => hasValidGeometry;
+        public int GeometryVersion => geometryVersion;
+        public Transform ProjectionPlane => projectionPlane;
 
         public void Initialize(
             ShadowCaster caster,
@@ -38,6 +47,7 @@ namespace ShadowPath.Shadow
             this.thickness = thickness;
             this.hullEpsilon = hullEpsilon;
 
+            ClearPublishedGeometryState();
             CacheComponents();
             if (meshRenderer != null)
             {
@@ -114,6 +124,7 @@ namespace ShadowPath.Shadow
 
             meshFilter.sharedMesh = mesh;
             RefreshMeshCollider(mesh);
+            SetPublishedGeometry(hullPlanePoints);
             return true;
         }
 
@@ -189,6 +200,8 @@ namespace ShadowPath.Shadow
 
         private void ClearGeneratedMesh()
         {
+            ClearPublishedGeometryState();
+
             if (runtimeMesh != null)
             {
                 runtimeMesh.Clear();
@@ -203,6 +216,30 @@ namespace ShadowPath.Shadow
             if (meshCollider != null)
             {
                 meshCollider.sharedMesh = null;
+            }
+        }
+
+        private void SetPublishedGeometry(IReadOnlyList<Vector2> hullPoints)
+        {
+            currentHull2D.Clear();
+            for (int i = 0; i < hullPoints.Count; i++)
+            {
+                currentHull2D.Add(hullPoints[i]);
+            }
+
+            hasValidGeometry = true;
+            geometryVersion++;
+        }
+
+        private void ClearPublishedGeometryState()
+        {
+            bool hadPublishedGeometry = hasValidGeometry || currentHull2D.Count > 0;
+            currentHull2D.Clear();
+            hasValidGeometry = false;
+
+            if (hadPublishedGeometry)
+            {
+                geometryVersion++;
             }
         }
 
