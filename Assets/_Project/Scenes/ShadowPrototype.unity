@@ -166,6 +166,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39385a7c3a1e46a6b7bc41a61571b814, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Shadow.GeneratedShadow
+  hasValidGeometry: 0
+  geometryVersion: 0
 --- !u!64 &202954430
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -767,6 +769,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39385a7c3a1e46a6b7bc41a61571b814, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Shadow.GeneratedShadow
+  hasValidGeometry: 0
+  geometryVersion: 0
 --- !u!64 &371410214
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1664,6 +1668,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39385a7c3a1e46a6b7bc41a61571b814, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Shadow.GeneratedShadow
+  hasValidGeometry: 0
+  geometryVersion: 0
 --- !u!64 &861094662
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -1743,6 +1749,56 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 861094659}
   m_Mesh: {fileID: 0}
+--- !u!1 &874520574
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 874520576}
+  - component: {fileID: 874520575}
+  m_Layer: 0
+  m_Name: ShadowSufaceSamplerDebugger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &874520575
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 874520574}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d31a5dd0165540b40b6553dce9fc978e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Shadow.ShadowSurfaceSamplerDebugger
+  targetShadow: {fileID: 1008436981}
+  sampleX: 0
+  epsilon: 0.0001
+  sampleValid: 0
+  sampledTopY: 0
+  gizmoRadius: 0.08
+--- !u!4 &874520576
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 874520574}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -5.48415, y: 3.72181, z: -10.43438}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1008436979
 GameObject:
   m_ObjectHideFlags: 0
@@ -1790,6 +1846,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39385a7c3a1e46a6b7bc41a61571b814, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Shadow.GeneratedShadow
+  hasValidGeometry: 0
+  geometryVersion: 0
 --- !u!64 &1008436982
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -3212,3 +3270,4 @@ SceneRoots:
   - {fileID: 1388865892}
   - {fileID: 567839613}
   - {fileID: 801482198}
+  - {fileID: 874520576}
