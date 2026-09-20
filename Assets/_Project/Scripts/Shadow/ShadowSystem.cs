@@ -8,6 +8,7 @@ namespace ShadowPath.Shadow
         private const string RuntimeShadowPrefix = "GeneratedShadow_";
         private const string PreviewShadowPrefix = "PreviewShadow_";
 
+        [SerializeField] private Light sourceLight;
         [SerializeField] private Transform lightSource;
         [SerializeField] private Transform projectionPlane;
         [SerializeField] private List<ShadowCaster> shadowCasters = new List<ShadowCaster>();
@@ -16,15 +17,31 @@ namespace ShadowPath.Shadow
         [SerializeField, Min(0.001f)] private float thickness = 0.1f;
         [SerializeField] private float hullEpsilon = 0.0001f;
         [SerializeField, Min(0f)] private float movementThreshold = 0.001f;
+        [SerializeField, Min(0f)] private float casterPositionThreshold = 0.001f;
+        [SerializeField, Min(0f)] private float casterRotationThreshold = 0.1f;
+        [SerializeField, Min(0f)] private float casterScaleThreshold = 0.001f;
         [SerializeField] private bool autoRebuildWhenLightMoves = true;
+        [SerializeField] private bool autoDetectShadowCasters = true;
+        [SerializeField] private LayerMask shadowCasterMask = ~0;
+        [SerializeField, Min(8)] private int detectionBufferSize = 64;
+        [SerializeField, Min(0.02f)] private float detectionInterval = 0.1f;
 
         private readonly Dictionary<ShadowCaster, GeneratedShadow> generatedShadows =
             new Dictionary<ShadowCaster, GeneratedShadow>();
 
+        private readonly Dictionary<ShadowCaster, TransformSnapshot> casterTransformSnapshots =
+            new Dictionary<ShadowCaster, TransformSnapshot>();
+
+        private readonly HashSet<ShadowCaster> detectedShadowCasters = new HashSet<ShadowCaster>();
+        private readonly List<ShadowCaster> castersLeavingRange = new List<ShadowCaster>();
         private readonly List<GeneratedShadow> previewShadows = new List<GeneratedShadow>();
 
+        private Collider[] detectionBuffer;
         private Vector3 lastLightPosition;
+        private float detectionTimer;
         private bool initialized;
+        private bool warnedInvalidSourceLight;
+        private bool warnedDetectionBufferFull;
 
         private void Start()
         {
@@ -33,27 +50,70 @@ namespace ShadowPath.Shadow
 
         private void FixedUpdate()
         {
-            if (!initialized || !autoRebuildWhenLightMoves || lightSource == null)
+            if (!initialized)
             {
                 return;
             }
 
-            Vector3 lightPosition = lightSource.position;
+            Transform runtimeLightTransform = GetRuntimeLightTransform();
+            if (autoRebuildWhenLightMoves && runtimeLightTransform != null && HasLightSourceMoved(runtimeLightTransform))
+            {
+                RebuildAllGeneratedShadows();
+                lastLightPosition = runtimeLightTransform.position;
+            }
+            else
+            {
+                RebuildMovedCasterShadows();
+            }
+
+            if (autoDetectShadowCasters)
+            {
+                detectionTimer += Time.fixedDeltaTime;
+                if (detectionTimer >= Mathf.Max(0.02f, detectionInterval))
+                {
+                    detectionTimer = 0f;
+                    DetectShadowCastersInRange();
+                }
+            }
+        }
+
+        private bool HasLightSourceMoved(Transform runtimeLightTransform)
+        {
+            Vector3 lightPosition = runtimeLightTransform.position;
             float threshold = Mathf.Max(0f, movementThreshold);
-            if ((lightPosition - lastLightPosition).sqrMagnitude <= threshold * threshold)
-            {
-                return;
-            }
+            return (lightPosition - lastLightPosition).sqrMagnitude > threshold * threshold;
+        }
 
+        private void RebuildAllGeneratedShadows()
+        {
             foreach (KeyValuePair<ShadowCaster, GeneratedShadow> pair in generatedShadows)
             {
                 if (pair.Value != null)
                 {
                     pair.Value.Rebuild();
                 }
-            }
 
-            lastLightPosition = lightPosition;
+                if (pair.Key != null)
+                {
+                    StoreCasterTransformSnapshot(pair.Key);
+                }
+            }
+        }
+
+        private void RebuildMovedCasterShadows()
+        {
+            foreach (KeyValuePair<ShadowCaster, GeneratedShadow> pair in generatedShadows)
+            {
+                ShadowCaster caster = pair.Key;
+                GeneratedShadow generatedShadow = pair.Value;
+                if (caster == null || generatedShadow == null || !HasCasterTransformChanged(caster))
+                {
+                    continue;
+                }
+
+                generatedShadow.Rebuild();
+                StoreCasterTransformSnapshot(caster);
+            }
         }
 
         private void InitializeShadows()
@@ -61,14 +121,28 @@ namespace ShadowPath.Shadow
             ClearPreviewShadowsInternal();
             ClearGeneratedShadows();
             initialized = false;
+            detectionTimer = 0f;
 
-            if (lightSource == null || projectionPlane == null)
+            if (projectionPlane == null)
             {
-                Debug.LogWarning("ShadowSystem requires a LightSource and ProjectionPlane.", this);
+                Debug.LogWarning("ShadowSystem requires a ProjectionPlane.", this);
                 return;
             }
 
-            lastLightPosition = lightSource.position;
+            Transform runtimeLightTransform = GetRuntimeLightTransform();
+            if (runtimeLightTransform == null)
+            {
+                return;
+            }
+
+            lastLightPosition = runtimeLightTransform.position;
+
+            if (autoDetectShadowCasters)
+            {
+                initialized = true;
+                DetectShadowCastersInRange();
+                return;
+            }
 
             if (shadowCasters == null)
             {
@@ -79,26 +153,163 @@ namespace ShadowPath.Shadow
             for (int i = 0; i < shadowCasters.Count; i++)
             {
                 ShadowCaster caster = shadowCasters[i];
-                if (!TryValidateCaster(caster, i))
+                TryAddGeneratedShadow(caster, i, runtimeLightTransform);
+            }
+
+            initialized = true;
+        }
+
+        private Transform GetRuntimeLightTransform()
+        {
+            if (!autoDetectShadowCasters)
+            {
+                if (lightSource == null)
+                {
+                    Debug.LogWarning("ShadowSystem requires a LightSource Transform in manual ShadowCaster mode.", this);
+                    return null;
+                }
+
+                return lightSource;
+            }
+
+            if (sourceLight == null)
+            {
+                WarnInvalidSourceLight("ShadowSystem requires a Point Light sourceLight for automatic ShadowCaster detection.");
+                return null;
+            }
+
+            if (sourceLight.type != LightType.Point)
+            {
+                WarnInvalidSourceLight("ShadowSystem automatic ShadowCaster detection only supports Point Light.");
+                return null;
+            }
+
+            warnedInvalidSourceLight = false;
+            return sourceLight.transform;
+        }
+
+        private void WarnInvalidSourceLight(string message)
+        {
+            if (warnedInvalidSourceLight)
+            {
+                return;
+            }
+
+            Debug.LogWarning(message, this);
+            warnedInvalidSourceLight = true;
+        }
+
+        private void DetectShadowCastersInRange()
+        {
+            if (!TryCollectShadowCastersInRange())
+            {
+                return;
+            }
+
+            int casterIndex = 0;
+            foreach (ShadowCaster caster in detectedShadowCasters)
+            {
+                if (!generatedShadows.ContainsKey(caster))
+                {
+                    TryAddGeneratedShadow(caster, casterIndex, sourceLight.transform);
+                }
+
+                casterIndex++;
+            }
+
+            RemoveCastersOutsideRange();
+        }
+
+        private bool TryCollectShadowCastersInRange()
+        {
+            if (sourceLight == null || sourceLight.type != LightType.Point)
+            {
+                return false;
+            }
+
+            EnsureDetectionBuffer();
+            detectedShadowCasters.Clear();
+            int hitCount = Physics.OverlapSphereNonAlloc(
+                sourceLight.transform.position,
+                sourceLight.range,
+                detectionBuffer,
+                shadowCasterMask,
+                QueryTriggerInteraction.Ignore);
+
+            if (hitCount == detectionBuffer.Length && !warnedDetectionBufferFull)
+            {
+                Debug.LogWarning("ShadowSystem ShadowCaster detection buffer is full. Increase Detection Buffer Size.", this);
+                warnedDetectionBufferFull = true;
+            }
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                Collider detectedCollider = detectionBuffer[i];
+                if (detectedCollider == null)
                 {
                     continue;
                 }
 
-                GeneratedShadow generatedShadow = CreateGeneratedShadow(caster, RuntimeShadowPrefix, i);
-                generatedShadow.Initialize(
-                    caster,
-                    lightSource,
-                    projectionPlane,
-                    shadowMaterial,
-                    surfaceOffset,
-                    thickness,
-                    hullEpsilon);
-
-                generatedShadows.Add(caster, generatedShadow);
-                generatedShadow.Rebuild();
+                ShadowCaster caster = detectedCollider.GetComponentInParent<ShadowCaster>();
+                if (caster != null)
+                {
+                    detectedShadowCasters.Add(caster);
+                }
             }
 
-            initialized = true;
+            return true;
+        }
+
+        private void EnsureDetectionBuffer()
+        {
+            int safeBufferSize = Mathf.Max(8, detectionBufferSize);
+            if (detectionBuffer != null && detectionBuffer.Length == safeBufferSize)
+            {
+                return;
+            }
+
+            detectionBuffer = new Collider[safeBufferSize];
+            warnedDetectionBufferFull = false;
+        }
+
+        private void RemoveCastersOutsideRange()
+        {
+            castersLeavingRange.Clear();
+            foreach (KeyValuePair<ShadowCaster, GeneratedShadow> pair in generatedShadows)
+            {
+                if (pair.Key != null && !detectedShadowCasters.Contains(pair.Key))
+                {
+                    castersLeavingRange.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < castersLeavingRange.Count; i++)
+            {
+                RemoveGeneratedShadow(castersLeavingRange[i]);
+            }
+        }
+
+        private bool TryAddGeneratedShadow(ShadowCaster caster, int casterIndex, Transform runtimeLightTransform)
+        {
+            if (!TryValidateCaster(caster, casterIndex))
+            {
+                return false;
+            }
+
+            GeneratedShadow generatedShadow = CreateGeneratedShadow(caster, RuntimeShadowPrefix, casterIndex);
+            generatedShadow.Initialize(
+                caster,
+                runtimeLightTransform,
+                projectionPlane,
+                shadowMaterial,
+                surfaceOffset,
+                thickness,
+                hullEpsilon);
+
+            generatedShadows.Add(caster, generatedShadow);
+            generatedShadow.Rebuild();
+            StoreCasterTransformSnapshot(caster);
+            return true;
         }
 
         [ContextMenu("Rebuild Preview Shadows")]
@@ -112,9 +323,28 @@ namespace ShadowPath.Shadow
 
             ClearPreviewShadowsInternal();
 
-            if (lightSource == null || projectionPlane == null)
+            Transform previewLightTransform = GetPreviewLightTransform();
+            if (previewLightTransform == null || projectionPlane == null)
             {
                 Debug.LogWarning("ShadowSystem requires a LightSource and ProjectionPlane to rebuild preview shadows.", this);
+                return;
+            }
+
+            if (autoDetectShadowCasters)
+            {
+                if (!TryCollectShadowCastersInRange())
+                {
+                    Debug.LogWarning("ShadowSystem requires a Point Light sourceLight to rebuild automatic preview shadows.", this);
+                    return;
+                }
+
+                int casterIndex = 0;
+                foreach (ShadowCaster caster in detectedShadowCasters)
+                {
+                    TryCreatePreviewShadow(caster, casterIndex, previewLightTransform, false);
+                    casterIndex++;
+                }
+
                 return;
             }
 
@@ -126,25 +356,48 @@ namespace ShadowPath.Shadow
 
             for (int i = 0; i < shadowCasters.Count; i++)
             {
-                ShadowCaster caster = shadowCasters[i];
-                if (!TryValidatePreviewCaster(caster, i))
-                {
-                    continue;
-                }
-
-                GeneratedShadow previewShadow = CreateGeneratedShadow(caster, PreviewShadowPrefix, i);
-                previewShadow.Initialize(
-                    caster,
-                    lightSource,
-                    projectionPlane,
-                    shadowMaterial,
-                    surfaceOffset,
-                    thickness,
-                    hullEpsilon);
-
-                previewShadows.Add(previewShadow);
-                previewShadow.Rebuild();
+                TryCreatePreviewShadow(shadowCasters[i], i, previewLightTransform, true);
             }
+        }
+
+        private Transform GetPreviewLightTransform()
+        {
+            if (lightSource != null)
+            {
+                return lightSource;
+            }
+
+            if (sourceLight != null && sourceLight.type == LightType.Point)
+            {
+                return sourceLight.transform;
+            }
+
+            return null;
+        }
+
+        private void TryCreatePreviewShadow(
+            ShadowCaster caster,
+            int casterIndex,
+            Transform previewLightTransform,
+            bool checkManualListDuplicates)
+        {
+            if (!TryValidatePreviewCaster(caster, casterIndex, checkManualListDuplicates))
+            {
+                return;
+            }
+
+            GeneratedShadow previewShadow = CreateGeneratedShadow(caster, PreviewShadowPrefix, casterIndex);
+            previewShadow.Initialize(
+                caster,
+                previewLightTransform,
+                projectionPlane,
+                shadowMaterial,
+                surfaceOffset,
+                thickness,
+                hullEpsilon);
+
+            previewShadows.Add(previewShadow);
+            previewShadow.Rebuild();
         }
 
         [ContextMenu("Clear Preview Shadows")]
@@ -176,7 +429,7 @@ namespace ShadowPath.Shadow
             return true;
         }
 
-        private bool TryValidatePreviewCaster(ShadowCaster caster, int index)
+        private bool TryValidatePreviewCaster(ShadowCaster caster, int index, bool checkManualListDuplicates)
         {
             if (caster == null)
             {
@@ -184,7 +437,7 @@ namespace ShadowPath.Shadow
                 return false;
             }
 
-            if (IsDuplicatePreviewCaster(caster, index))
+            if (checkManualListDuplicates && IsDuplicatePreviewCaster(caster, index))
             {
                 Debug.LogWarning("ShadowSystem skipped duplicate preview ShadowCaster " + caster.name + ".", caster);
                 return false;
@@ -229,15 +482,9 @@ namespace ShadowPath.Shadow
 
         private string BuildShadowName(string namePrefix, string casterName, int casterIndex)
         {
-            int sameNameCount = 0;
-            for (int i = 0; i < casterIndex; i++)
-            {
-                ShadowCaster previousCaster = shadowCasters[i];
-                if (previousCaster != null && previousCaster.name == casterName)
-                {
-                    sameNameCount++;
-                }
-            }
+            int sameNameCount = namePrefix == RuntimeShadowPrefix
+                ? CountRuntimeCastersWithName(casterName)
+                : CountPreviewShadowsWithName(casterName);
 
             if (sameNameCount == 0)
             {
@@ -245,6 +492,59 @@ namespace ShadowPath.Shadow
             }
 
             return namePrefix + casterName + sameNameCount;
+        }
+
+        private int CountRuntimeCastersWithName(string casterName)
+        {
+            int sameNameCount = 0;
+            foreach (KeyValuePair<ShadowCaster, GeneratedShadow> pair in generatedShadows)
+            {
+                if (pair.Key != null && pair.Key.name == casterName)
+                {
+                    sameNameCount++;
+                }
+            }
+
+            return sameNameCount;
+        }
+
+        private int CountPreviewShadowsWithName(string casterName)
+        {
+            int sameNameCount = 0;
+            for (int i = 0; i < previewShadows.Count; i++)
+            {
+                GeneratedShadow previewShadow = previewShadows[i];
+                if (previewShadow != null && IsMatchingPreviewShadowName(previewShadow.name, casterName))
+                {
+                    sameNameCount++;
+                }
+            }
+
+            return sameNameCount;
+        }
+
+        private bool IsMatchingPreviewShadowName(string shadowName, string casterName)
+        {
+            string baseName = PreviewShadowPrefix + casterName;
+            if (shadowName == baseName)
+            {
+                return true;
+            }
+
+            if (!shadowName.StartsWith(baseName))
+            {
+                return false;
+            }
+
+            for (int i = baseName.Length; i < shadowName.Length; i++)
+            {
+                if (!char.IsDigit(shadowName[i]))
+                {
+                    return false;
+                }
+            }
+
+            return shadowName.Length > baseName.Length;
         }
 
         private void ClearGeneratedShadows()
@@ -268,6 +568,19 @@ namespace ShadowPath.Shadow
             }
 
             generatedShadows.Clear();
+            casterTransformSnapshots.Clear();
+        }
+
+        private void RemoveGeneratedShadow(ShadowCaster caster)
+        {
+            if (caster == null || !generatedShadows.TryGetValue(caster, out GeneratedShadow generatedShadow))
+            {
+                return;
+            }
+
+            generatedShadows.Remove(caster);
+            casterTransformSnapshots.Remove(caster);
+            DestroyGeneratedShadowObject(generatedShadow);
         }
 
         private void ClearPreviewShadowsInternal()
@@ -321,6 +634,56 @@ namespace ShadowPath.Shadow
         {
             ClearPreviewShadowsInternal();
             ClearGeneratedShadows();
+        }
+
+        private bool HasCasterTransformChanged(ShadowCaster caster)
+        {
+            TransformSnapshot currentSnapshot = TransformSnapshot.Capture(caster.transform);
+            if (!casterTransformSnapshots.TryGetValue(caster, out TransformSnapshot previousSnapshot))
+            {
+                return true;
+            }
+
+            float positionThreshold = Mathf.Max(0f, casterPositionThreshold);
+            if ((currentSnapshot.Position - previousSnapshot.Position).sqrMagnitude > positionThreshold * positionThreshold)
+            {
+                return true;
+            }
+
+            if (Quaternion.Angle(currentSnapshot.Rotation, previousSnapshot.Rotation) > Mathf.Max(0f, casterRotationThreshold))
+            {
+                return true;
+            }
+
+            float scaleThreshold = Mathf.Max(0f, casterScaleThreshold);
+            return (currentSnapshot.Scale - previousSnapshot.Scale).sqrMagnitude > scaleThreshold * scaleThreshold;
+        }
+
+        private void StoreCasterTransformSnapshot(ShadowCaster caster)
+        {
+            casterTransformSnapshots[caster] = TransformSnapshot.Capture(caster.transform);
+        }
+
+        private struct TransformSnapshot
+        {
+            public Vector3 Position { get; }
+            public Quaternion Rotation { get; }
+            public Vector3 Scale { get; }
+
+            private TransformSnapshot(Vector3 position, Quaternion rotation, Vector3 scale)
+            {
+                Position = position;
+                Rotation = rotation;
+                Scale = scale;
+            }
+
+            public static TransformSnapshot Capture(Transform source)
+            {
+                return new TransformSnapshot(
+                    source.position,
+                    source.rotation,
+                    source.lossyScale);
+            }
         }
     }
 }
