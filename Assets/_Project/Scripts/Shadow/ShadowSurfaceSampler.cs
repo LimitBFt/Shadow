@@ -15,42 +15,12 @@ namespace ShadowPath.Shadow
         {
             topY = default;
 
-            if (hull == null || hull.Count < 3 || !IsFinite(x))
+            if (!TryGetClampedXInRange(hull, x, out float sampleX, out _, out _, epsilon))
             {
                 return false;
             }
 
             float safeEpsilon = Mathf.Max(epsilon, 0.0000001f);
-            float minHullX = float.PositiveInfinity;
-            float maxHullX = float.NegativeInfinity;
-
-            for (int i = 0; i < hull.Count; i++)
-            {
-                Vector2 point = hull[i];
-                if (!IsFinite(point))
-                {
-                    return false;
-                }
-
-                minHullX = Mathf.Min(minHullX, point.x);
-                maxHullX = Mathf.Max(maxHullX, point.x);
-            }
-
-            if (x < minHullX - safeEpsilon || x > maxHullX + safeEpsilon)
-            {
-                return false;
-            }
-
-            float sampleX = x;
-            if (Mathf.Abs(sampleX - minHullX) <= safeEpsilon)
-            {
-                sampleX = minHullX;
-            }
-            else if (Mathf.Abs(sampleX - maxHullX) <= safeEpsilon)
-            {
-                sampleX = maxHullX;
-            }
-
             bool foundIntersection = false;
             float bestY = float.NegativeInfinity;
 
@@ -99,6 +69,116 @@ namespace ShadowPath.Shadow
             }
 
             topY = bestY;
+            return true;
+        }
+
+        public static bool TryGetHorizontalRange(
+            IReadOnlyList<Vector2> hull,
+            out float minX,
+            out float maxX,
+            float epsilon = DefaultEpsilon)
+        {
+            minX = default;
+            maxX = default;
+
+            if (hull == null || hull.Count < 3)
+            {
+                return false;
+            }
+
+            float calculatedMinX = float.PositiveInfinity;
+            float calculatedMaxX = float.NegativeInfinity;
+            for (int i = 0; i < hull.Count; i++)
+            {
+                Vector2 point = hull[i];
+                if (!IsFinite(point))
+                {
+                    return false;
+                }
+
+                calculatedMinX = Mathf.Min(calculatedMinX, point.x);
+                calculatedMaxX = Mathf.Max(calculatedMaxX, point.x);
+            }
+
+            float safeEpsilon = Mathf.Max(epsilon, 0.0000001f);
+            if (!IsFinite(calculatedMinX)
+                || !IsFinite(calculatedMaxX)
+                || calculatedMaxX - calculatedMinX <= safeEpsilon)
+            {
+                return false;
+            }
+
+            minX = calculatedMinX;
+            maxX = calculatedMaxX;
+            return true;
+        }
+
+        public static bool TryGetNormalizedX(
+            IReadOnlyList<Vector2> hull,
+            float x,
+            out float normalizedX,
+            float epsilon = DefaultEpsilon)
+        {
+            normalizedX = default;
+
+            if (!TryGetClampedXInRange(hull, x, out float clampedX, out float minX, out float maxX, epsilon))
+            {
+                return false;
+            }
+
+            normalizedX = Mathf.Clamp01((clampedX - minX) / (maxX - minX));
+            return IsFinite(normalizedX);
+        }
+
+        public static bool TryGetTopPointAtNormalizedX(
+            IReadOnlyList<Vector2> hull,
+            float normalizedX,
+            out Vector2 point,
+            float epsilon = DefaultEpsilon)
+        {
+            point = default;
+
+            if (!IsFinite(normalizedX)
+                || !TryGetHorizontalRange(hull, out float minX, out float maxX, epsilon))
+            {
+                return false;
+            }
+
+            float safeNormalizedX = Mathf.Clamp01(normalizedX);
+            float x = Mathf.Lerp(minX, maxX, safeNormalizedX);
+            if (!TryGetTopYAtX(hull, x, out float topY, epsilon))
+            {
+                return false;
+            }
+
+            point = new Vector2(x, topY);
+            return true;
+        }
+
+        private static bool TryGetClampedXInRange(
+            IReadOnlyList<Vector2> hull,
+            float x,
+            out float clampedX,
+            out float minX,
+            out float maxX,
+            float epsilon)
+        {
+            clampedX = default;
+            minX = default;
+            maxX = default;
+
+            if (!IsFinite(x) || !TryGetHorizontalRange(hull, out minX, out maxX, epsilon))
+            {
+                return false;
+            }
+
+            float safeEpsilon = Mathf.Max(epsilon, 0.0000001f);
+            if (x < minX - safeEpsilon || x > maxX + safeEpsilon)
+            {
+                return false;
+            }
+
+            clampedX = Mathf.Clamp(x, minX, maxX);
             return true;
         }
 

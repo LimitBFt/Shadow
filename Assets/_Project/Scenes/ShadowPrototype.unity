@@ -1780,10 +1780,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Shadow.ShadowSurfaceSamplerDebugger
   targetShadow: {fileID: 1008436981}
   sampleX: 0
+  sampleNormalizedX: 0.5
   epsilon: 0.0001
   sampleValid: 0
   sampledTopY: 0
-  gizmoRadius: 0.08
+  normalizedSampleValid: 0
+  normalizedSamplePoint: {x: 0, y: 0}
+  gizmoRadius: 1.03
 --- !u!4 &874520576
 Transform:
   m_ObjectHideFlags: 0
