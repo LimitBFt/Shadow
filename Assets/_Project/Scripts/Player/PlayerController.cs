@@ -14,6 +14,8 @@ namespace ShadowPath.Player
         [SerializeField] private float moveSpeed = 5f;
         [SerializeField] private float jumpForce = 7f;
         [SerializeField] private float groundCheckDistance = 0.08f;
+        [SerializeField] private Vector3 pendingExternalDisplacement;
+        [SerializeField] private Vector3 consumedExternalDisplacement;
 
         private Rigidbody body;
         private CapsuleCollider capsuleCollider;
@@ -55,7 +57,37 @@ namespace ShadowPath.Player
                 body.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
             }
 
+            ConsumeExternalDisplacement();
             jumpRequested = false;
+        }
+
+        public void AddExternalDisplacement(Vector3 displacement)
+        {
+            if (!IsFinite(displacement))
+            {
+                return;
+            }
+
+            displacement.z = 0f;
+            pendingExternalDisplacement += displacement;
+        }
+
+        private void ConsumeExternalDisplacement()
+        {
+            consumedExternalDisplacement = pendingExternalDisplacement;
+            pendingExternalDisplacement = Vector3.zero;
+            if (consumedExternalDisplacement == Vector3.zero)
+            {
+                return;
+            }
+
+            body.MovePosition(body.position + consumedExternalDisplacement);
+        }
+
+        private void OnDisable()
+        {
+            pendingExternalDisplacement = Vector3.zero;
+            consumedExternalDisplacement = Vector3.zero;
         }
 
         private bool IsGrounded()
@@ -144,28 +176,38 @@ namespace ShadowPath.Player
                 return 0f;
             }
 
-            if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed)
+            if (keyboard.aKey.isPressed)
             {
                 input -= 1f;
             }
 
-            if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed)
+            if (keyboard.dKey.isPressed)
             {
                 input += 1f;
             }
 #else
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
+            if (Input.GetKey(KeyCode.A))
             {
                 input -= 1f;
             }
 
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
+            if (Input.GetKey(KeyCode.D))
             {
                 input += 1f;
             }
 #endif
 
             return Mathf.Clamp(input, -1f, 1f);
+        }
+
+        private static bool IsFinite(Vector3 value)
+        {
+            return IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z);
+        }
+
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
         }
 
         private static bool ReadJumpPressed()
