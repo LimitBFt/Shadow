@@ -18,6 +18,7 @@ namespace ShadowPath.Interaction
         [SerializeField] private PlayerController playerController;
         [SerializeField] private LightSourceController lightSourceController;
         [SerializeField] private GameObject interactionPrompt;
+        [SerializeField, Range(0f, 1f)] private float directionThreshold = 0.35f;
 
         private InteractionStation nearbyStation;
         private InteractionStation currentStation;
@@ -27,6 +28,7 @@ namespace ShadowPath.Interaction
         private ObjectHighlight currentHighlight;
         private bool playerControllerWasEnabled;
         private bool lightSourceControllerWasEnabled;
+        private const float SelectionEpsilon = 0.0001f;
 
         public bool IsInteracting => state != InteractionState.Normal;
         public bool IsSelecting => state == InteractionState.Selecting;
@@ -232,14 +234,27 @@ namespace ShadowPath.Interaction
                 return;
             }
 
-            if (keyboard.aKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame)
+            if (keyboard.wKey.wasPressedThisFrame || keyboard.upArrowKey.wasPressedThisFrame)
             {
-                SelectPreviousObject();
+                TrySelectInDirection(Vector2.up);
+                return;
             }
 
-            if (keyboard.dKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame)
+            if (keyboard.sKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame)
             {
-                SelectNextObject();
+                TrySelectInDirection(Vector2.down);
+                return;
+            }
+
+            if (keyboard.aKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame)
+            {
+                TrySelectInDirection(Vector2.left);
+                return;
+            }
+
+            if (keyboard.dKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame)
+            {
+                TrySelectInDirection(Vector2.right);
             }
         }
 
@@ -281,21 +296,6 @@ namespace ShadowPath.Interaction
 
         private void SelectFirstValidObject()
         {
-            SelectObjectByDirection(1);
-        }
-
-        private void SelectNextObject()
-        {
-            SelectObjectByDirection(1);
-        }
-
-        private void SelectPreviousObject()
-        {
-            SelectObjectByDirection(-1);
-        }
-
-        private void SelectObjectByDirection(int direction)
-        {
             if (currentStation == null)
             {
                 ClearCurrentSelection();
@@ -309,23 +309,95 @@ namespace ShadowPath.Interaction
                 return;
             }
 
-            int startIndex = selectedIndex;
             for (int i = 0; i < controlledObjects.Count; i++)
             {
-                int candidateIndex = GetWrappedIndex(startIndex + direction * (i + 1), controlledObjects.Count);
-                RotatableObject candidate = controlledObjects[candidateIndex];
+                RotatableObject candidate = controlledObjects[i];
                 if (!IsValidSelectable(candidate))
                 {
                     continue;
                 }
 
-                SetSelectedObject(candidateIndex, candidate);
+                SetSelectedObject(i, candidate);
                 return;
             }
 
             ClearCurrentHighlight();
             selectedObject = null;
             selectedIndex = -1;
+        }
+
+        private bool TrySelectInDirection(Vector2 inputDirection)
+        {
+            if (!EnsureValidSelection())
+            {
+                return false;
+            }
+
+            if (currentStation == null)
+            {
+                ClearCurrentSelection();
+                return false;
+            }
+
+            IReadOnlyList<RotatableObject> controlledObjects = currentStation.ControlledObjects;
+            if (controlledObjects == null || controlledObjects.Count == 0)
+            {
+                return false;
+            }
+
+            Vector2 normalizedDirection = inputDirection.normalized;
+            Vector2 currentPosition = GetWorldXY(selectedObject.transform.position);
+            int bestIndex = -1;
+            RotatableObject bestCandidate = null;
+            float bestScore = float.NegativeInfinity;
+
+            for (int i = 0; i < controlledObjects.Count; i++)
+            {
+                RotatableObject candidate = controlledObjects[i];
+                if (!IsValidSelectable(candidate) || candidate == selectedObject)
+                {
+                    continue;
+                }
+
+                Vector2 candidatePosition = GetWorldXY(candidate.transform.position);
+                Vector2 delta = candidatePosition - currentPosition;
+                float sqrDistance = delta.sqrMagnitude;
+                if (sqrDistance <= SelectionEpsilon * SelectionEpsilon)
+                {
+                    continue;
+                }
+
+                float forward = Vector2.Dot(delta, normalizedDirection);
+                if (forward <= SelectionEpsilon)
+                {
+                    continue;
+                }
+
+                float distance = Mathf.Sqrt(sqrDistance);
+                float alignment = forward / distance;
+                if (alignment < directionThreshold)
+                {
+                    continue;
+                }
+
+                float score = alignment * 1000f - distance;
+                if (score <= bestScore)
+                {
+                    continue;
+                }
+
+                bestScore = score;
+                bestIndex = i;
+                bestCandidate = candidate;
+            }
+
+            if (bestCandidate == null)
+            {
+                return false;
+            }
+
+            SetSelectedObject(bestIndex, bestCandidate);
+            return true;
         }
 
         private void SetSelectedObject(int newSelectedIndex, RotatableObject selectedObject)
@@ -374,15 +446,10 @@ namespace ShadowPath.Interaction
                 && rotatableObject.isActiveAndEnabled;
         }
 
-        private static int GetWrappedIndex(int index, int count)
+        private static Vector2 GetWorldXY(Vector3 worldPosition)
         {
-            int wrappedIndex = index % count;
-            if (wrappedIndex < 0)
-            {
-                wrappedIndex += count;
-            }
-
-            return wrappedIndex;
+            return new Vector2(worldPosition.x, worldPosition.y);
         }
+
     }
 }
