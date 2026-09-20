@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ShadowPath.Lighting;
 using ShadowPath.Player;
 using UnityEngine;
@@ -8,7 +9,7 @@ namespace ShadowPath.Interaction
     public enum InteractionState
     {
         Normal,
-        Interacting
+        Selecting
     }
 
     public class PlayerInteractionController : MonoBehaviour
@@ -18,12 +19,15 @@ namespace ShadowPath.Interaction
         [SerializeField] private GameObject interactionPrompt;
 
         private InteractionStation nearbyStation;
-        private InteractionStation activeStation;
+        private InteractionStation currentStation;
         private InteractionState state = InteractionState.Normal;
+        private int selectedIndex = -1;
+        private ObjectHighlight currentHighlight;
         private bool playerControllerWasEnabled;
         private bool lightSourceControllerWasEnabled;
 
-        public bool IsInteracting => state == InteractionState.Interacting;
+        public bool IsInteracting => state == InteractionState.Selecting;
+        public bool IsSelecting => state == InteractionState.Selecting;
 
         private void Awake()
         {
@@ -47,15 +51,25 @@ namespace ShadowPath.Interaction
             {
                 if (nearbyStation != null && keyboard.eKey.wasPressedThisFrame)
                 {
-                    EnterInteractionMode(nearbyStation);
+                    EnterSelectionMode(nearbyStation);
                 }
 
                 return;
             }
 
+            if (keyboard.aKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame)
+            {
+                SelectPreviousObject();
+            }
+
+            if (keyboard.dKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame)
+            {
+                SelectNextObject();
+            }
+
             if (keyboard.eKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame)
             {
-                ExitInteractionMode();
+                ExitSelectionMode();
             }
         }
 
@@ -72,14 +86,14 @@ namespace ShadowPath.Interaction
 
         public void ExitStationRange(InteractionStation station)
         {
-            if (station == null || (nearbyStation != station && activeStation != station))
+            if (station == null || (nearbyStation != station && currentStation != station))
             {
                 return;
             }
 
-            if (activeStation == station)
+            if (currentStation == station)
             {
-                ExitInteractionMode();
+                ExitSelectionMode();
             }
 
             if (nearbyStation == station)
@@ -90,15 +104,16 @@ namespace ShadowPath.Interaction
             UpdateInteractionPrompt();
         }
 
-        private void EnterInteractionMode(InteractionStation station)
+        private void EnterSelectionMode(InteractionStation station)
         {
-            if (station == null || state == InteractionState.Interacting)
+            if (station == null || state == InteractionState.Selecting)
             {
                 return;
             }
 
-            activeStation = station;
-            state = InteractionState.Interacting;
+            currentStation = station;
+            state = InteractionState.Selecting;
+            selectedIndex = -1;
             UpdateInteractionPrompt();
 
             playerControllerWasEnabled = playerController != null && playerController.enabled;
@@ -114,15 +129,19 @@ namespace ShadowPath.Interaction
                 lightSourceController.enabled = false;
             }
 
-            Debug.Log($"Entered interaction mode: {station.name}", this);
+            SelectFirstValidObject();
+            Debug.Log($"Entered selection mode: {station.name}", this);
         }
 
-        private void ExitInteractionMode()
+        private void ExitSelectionMode()
         {
             if (state == InteractionState.Normal)
             {
                 return;
             }
+
+            ClearCurrentHighlight();
+            selectedIndex = -1;
 
             if (playerController != null && playerControllerWasEnabled)
             {
@@ -134,15 +153,15 @@ namespace ShadowPath.Interaction
                 lightSourceController.enabled = true;
             }
 
-            activeStation = null;
+            currentStation = null;
             state = InteractionState.Normal;
             UpdateInteractionPrompt();
-            Debug.Log("Exited interaction mode", this);
+            Debug.Log("Exited selection mode", this);
         }
 
         private void OnDisable()
         {
-            ExitInteractionMode();
+            ExitSelectionMode();
             SetInteractionPromptActive(false);
         }
 
@@ -157,6 +176,93 @@ namespace ShadowPath.Interaction
             {
                 interactionPrompt.SetActive(active);
             }
+        }
+
+        private void SelectFirstValidObject()
+        {
+            SelectObjectByDirection(1);
+        }
+
+        private void SelectNextObject()
+        {
+            SelectObjectByDirection(1);
+        }
+
+        private void SelectPreviousObject()
+        {
+            SelectObjectByDirection(-1);
+        }
+
+        private void SelectObjectByDirection(int direction)
+        {
+            if (currentStation == null)
+            {
+                ClearCurrentHighlight();
+                selectedIndex = -1;
+                return;
+            }
+
+            IReadOnlyList<RotatableObject> controlledObjects = currentStation.ControlledObjects;
+            if (controlledObjects == null || controlledObjects.Count == 0)
+            {
+                ClearCurrentHighlight();
+                selectedIndex = -1;
+                return;
+            }
+
+            int startIndex = selectedIndex;
+            for (int i = 0; i < controlledObjects.Count; i++)
+            {
+                int candidateIndex = GetWrappedIndex(startIndex + direction * (i + 1), controlledObjects.Count);
+                RotatableObject candidate = controlledObjects[candidateIndex];
+                if (!IsValidSelectable(candidate))
+                {
+                    continue;
+                }
+
+                SetSelectedObject(candidateIndex, candidate);
+                return;
+            }
+
+            ClearCurrentHighlight();
+            selectedIndex = -1;
+        }
+
+        private void SetSelectedObject(int newSelectedIndex, RotatableObject selectedObject)
+        {
+            ClearCurrentHighlight();
+            selectedIndex = newSelectedIndex;
+            currentHighlight = selectedObject.GetComponent<ObjectHighlight>();
+            if (currentHighlight != null)
+            {
+                currentHighlight.SetHighlighted(true);
+            }
+        }
+
+        private void ClearCurrentHighlight()
+        {
+            if (currentHighlight != null)
+            {
+                currentHighlight.SetHighlighted(false);
+                currentHighlight = null;
+            }
+        }
+
+        private static bool IsValidSelectable(RotatableObject rotatableObject)
+        {
+            return rotatableObject != null
+                && rotatableObject.isActiveAndEnabled;
+        }
+
+        private static int GetWrappedIndex(int index, int count)
+        {
+            int wrappedIndex = index % count;
+            if (wrappedIndex < 0)
+            {
+                wrappedIndex += count;
+            }
+
+            return wrappedIndex;
         }
     }
 }
