@@ -31,6 +31,15 @@ namespace ShadowPath.Shadow
         public int GeometryVersion => geometryVersion;
         public Transform ProjectionPlane => projectionPlane;
 
+        public void SetVisualVisible(bool visible)
+        {
+            CacheComponents();
+            if (meshRenderer != null)
+            {
+                meshRenderer.enabled = visible;
+            }
+        }
+
         public void Initialize(
             ShadowCaster caster,
             Transform lightSource,

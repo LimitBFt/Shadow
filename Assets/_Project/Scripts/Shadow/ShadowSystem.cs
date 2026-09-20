@@ -16,6 +16,7 @@ namespace ShadowPath.Shadow
         [SerializeField] private float surfaceOffset = 0.002f;
         [SerializeField, Min(0.001f)] private float thickness = 0.1f;
         [SerializeField] private float hullEpsilon = 0.0001f;
+        [SerializeField] private bool showGeneratedShadowVisual = true;
         [SerializeField, Min(0f)] private float movementThreshold = 0.001f;
         [SerializeField, Min(0f)] private float casterPositionThreshold = 0.001f;
         [SerializeField, Min(0f)] private float casterRotationThreshold = 0.1f;
@@ -42,6 +43,11 @@ namespace ShadowPath.Shadow
         private bool initialized;
         private bool warnedInvalidSourceLight;
         private bool warnedDetectionBufferFull;
+
+        private void OnValidate()
+        {
+            ApplyGeneratedShadowVisualVisibility();
+        }
 
         private void Start()
         {
@@ -305,6 +311,7 @@ namespace ShadowPath.Shadow
                 surfaceOffset,
                 thickness,
                 hullEpsilon);
+            generatedShadow.SetVisualVisible(showGeneratedShadowVisual);
 
             generatedShadows.Add(caster, generatedShadow);
             generatedShadow.Rebuild();
@@ -395,6 +402,7 @@ namespace ShadowPath.Shadow
                 surfaceOffset,
                 thickness,
                 hullEpsilon);
+            previewShadow.SetVisualVisible(showGeneratedShadowVisual);
 
             previewShadows.Add(previewShadow);
             previewShadow.Rebuild();
@@ -627,6 +635,26 @@ namespace ShadowPath.Shadow
             else
             {
                 DestroyImmediate(shadowObject);
+            }
+        }
+
+        private void ApplyGeneratedShadowVisualVisibility()
+        {
+            foreach (KeyValuePair<ShadowCaster, GeneratedShadow> pair in generatedShadows)
+            {
+                if (pair.Value != null)
+                {
+                    pair.Value.SetVisualVisible(showGeneratedShadowVisual);
+                }
+            }
+
+            for (int i = 0; i < previewShadows.Count; i++)
+            {
+                GeneratedShadow previewShadow = previewShadows[i];
+                if (previewShadow != null)
+                {
+                    previewShadow.SetVisualVisible(showGeneratedShadowVisual);
+                }
             }
         }
 
