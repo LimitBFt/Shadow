@@ -502,7 +502,8 @@ GameObject:
   - component: {fileID: 249583345}
   - component: {fileID: 249583347}
   - component: {fileID: 249583346}
-  m_Layer: 0
+  - component: {fileID: 249583353}
+  m_Layer: 3
   m_Name: Cube (3)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -661,6 +662,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &249583353
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249583344}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b141797349a4beba51706c7f57fe7ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Camera.OccludableObject
+  renderers:
+  - {fileID: 249583350}
 --- !u!1 &302122439
 GameObject:
   m_ObjectHideFlags: 0
@@ -1105,7 +1120,8 @@ GameObject:
   - component: {fileID: 522843769}
   - component: {fileID: 522843768}
   - component: {fileID: 522843767}
-  m_Layer: 0
+  - component: {fileID: 522843770}
+  m_Layer: 3
   m_Name: Cube (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1170,7 +1186,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: f0f15cde7e4a1dd4a993d2792a626110, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1264,6 +1280,19 @@ MonoBehaviour:
   stepAngle: 45
   rotationDuration: 0.25
   enableDebugInput: 0
+--- !u!114 &522843770
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 522843761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b141797349a4beba51706c7f57fe7ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Camera.OccludableObject
+  renderers: []
 --- !u!1 &524968232
 GameObject:
   m_ObjectHideFlags: 0
@@ -1924,6 +1953,7 @@ GameObject:
   m_Component:
   - component: {fileID: 940179930}
   - component: {fileID: 940179929}
+  - component: {fileID: 940179931}
   m_Layer: 0
   m_Name: CameraRig
   m_TagString: Untagged
@@ -1972,6 +2002,30 @@ Transform:
   - {fileID: 330585546}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &940179931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 940179928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f507c32ed6c4e119366113c48e07b9d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Camera.CameraOcclusionController
+  target: {fileID: 1689364682}
+  targetCamera: {fileID: 330585545}
+  occluderMask:
+    serializedVersion: 2
+    m_Bits: 8
+  sphereRadius: 0.2
+  innerRadius: 0.07
+  outerRadius: 0.14
+  screenCenterOffset: {x: 0, y: 0.03}
+  fadeInSpeed: 6
+  fadeOutSpeed: 4
+  drawDebug: 0
 --- !u!1 &1008436979
 GameObject:
   m_ObjectHideFlags: 0
@@ -2969,7 +3023,8 @@ GameObject:
   - component: {fileID: 1849205800}
   - component: {fileID: 1849205802}
   - component: {fileID: 1849205801}
-  m_Layer: 0
+  - component: {fileID: 1849205808}
+  m_Layer: 3
   m_Name: Cube (4)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3128,6 +3183,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1849205808
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1849205799}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b141797349a4beba51706c7f57fe7ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Camera.OccludableObject
+  renderers:
+  - {fileID: 1849205805}
 --- !u!1 &1881861537
 GameObject:
   m_ObjectHideFlags: 0
@@ -3144,7 +3213,8 @@ GameObject:
   - component: {fileID: 1881861538}
   - component: {fileID: 1881861540}
   - component: {fileID: 1881861539}
-  m_Layer: 0
+  - component: {fileID: 1881861546}
+  m_Layer: 3
   m_Name: Cube (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3303,6 +3373,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1881861546
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1881861537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b141797349a4beba51706c7f57fe7ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Camera.OccludableObject
+  renderers:
+  - {fileID: 1881861543}
 --- !u!1 &2065640679
 GameObject:
   m_ObjectHideFlags: 0
@@ -3319,7 +3403,8 @@ GameObject:
   - component: {fileID: 2065640685}
   - component: {fileID: 2065640686}
   - component: {fileID: 2065640687}
-  m_Layer: 0
+  - component: {fileID: 2065640688}
+  m_Layer: 3
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3478,6 +3563,20 @@ MonoBehaviour:
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []
+--- !u!114 &2065640688
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2065640679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b141797349a4beba51706c7f57fe7ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Camera.OccludableObject
+  renderers:
+  - {fileID: 2065640681}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
