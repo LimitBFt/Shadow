@@ -1,8 +1,5 @@
+using ShadowPath.Input;
 using UnityEngine;
-
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-using UnityEngine.InputSystem;
-#endif
 
 namespace ShadowPath.Player
 {
@@ -24,6 +21,7 @@ namespace ShadowPath.Player
 
         private void Awake()
         {
+            GameplayInput.TryInitialize(this);
             body = GetComponent<Rigidbody>();
             capsuleCollider = GetComponent<CapsuleCollider>();
             body.constraints |= RigidbodyConstraints.FreezePositionZ
@@ -167,37 +165,9 @@ namespace ShadowPath.Player
 
         private static float ReadMoveInput()
         {
-            float input = 0f;
-
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return 0f;
-            }
-
-            if (keyboard.aKey.isPressed)
-            {
-                input -= 1f;
-            }
-
-            if (keyboard.dKey.isPressed)
-            {
-                input += 1f;
-            }
-#else
-            if (Input.GetKey(KeyCode.A))
-            {
-                input -= 1f;
-            }
-
-            if (Input.GetKey(KeyCode.D))
-            {
-                input += 1f;
-            }
-#endif
-
-            return Mathf.Clamp(input, -1f, 1f);
+            return GameplayInput.Move == null
+                ? 0f
+                : Mathf.Clamp(GameplayInput.Move.ReadValue<Vector2>().x, -1f, 1f);
         }
 
         private static bool IsFinite(Vector3 value)
@@ -212,12 +182,7 @@ namespace ShadowPath.Player
 
         private static bool ReadJumpPressed()
         {
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-            Keyboard keyboard = Keyboard.current;
-            return keyboard != null && keyboard.spaceKey.wasPressedThisFrame;
-#else
-            return Input.GetKeyDown(KeyCode.Space);
-#endif
+            return GameplayInput.Jump != null && GameplayInput.Jump.WasPressedThisFrame();
         }
     }
 }

@@ -1,8 +1,8 @@
 using System.Collections.Generic;
+using ShadowPath.Input;
 using ShadowPath.Lighting;
 using ShadowPath.Player;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace ShadowPath.Interaction
 {
@@ -19,6 +19,7 @@ namespace ShadowPath.Interaction
         [SerializeField] private LightSourceController lightSourceController;
         [SerializeField] private GameObject interactionPrompt;
         [SerializeField, Range(0f, 1f)] private float directionThreshold = 0.35f;
+        [SerializeField, Range(0f, 1f)] private float moveInputThreshold = 0.5f;
 
         private InteractionStation nearbyStation;
         private InteractionStation currentStation;
@@ -28,6 +29,7 @@ namespace ShadowPath.Interaction
         private ObjectHighlight currentHighlight;
         private bool playerControllerWasEnabled;
         private bool lightSourceControllerWasEnabled;
+        private bool moveInputArmed = true;
         private const float SelectionEpsilon = 0.0001f;
 
         public bool IsInteracting => state != InteractionState.Normal;
@@ -36,6 +38,7 @@ namespace ShadowPath.Interaction
 
         private void Awake()
         {
+            GameplayInput.TryInitialize(this);
             if (playerController == null)
             {
                 playerController = GetComponent<PlayerController>();
@@ -46,22 +49,16 @@ namespace ShadowPath.Interaction
 
         private void Update()
         {
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return;
-            }
-
             switch (state)
             {
                 case InteractionState.Normal:
-                    HandleNormalInput(keyboard);
+                    HandleNormalInput();
                     break;
                 case InteractionState.Selecting:
-                    HandleSelectingInput(keyboard);
+                    HandleSelectingInput();
                     break;
                 case InteractionState.Rotating:
-                    HandleRotatingInput(keyboard);
+                    HandleRotatingInput();
                     break;
             }
         }
@@ -107,6 +104,7 @@ namespace ShadowPath.Interaction
             currentStation = station;
             state = InteractionState.Selecting;
             selectedIndex = -1;
+            moveInputArmed = true;
             UpdateInteractionPrompt();
 
             playerControllerWasEnabled = playerController != null && playerController.enabled;
@@ -139,6 +137,7 @@ namespace ShadowPath.Interaction
             }
 
             state = InteractionState.Rotating;
+            moveInputArmed = false;
             UpdateInteractionPrompt();
             Debug.Log($"Entered rotation mode: {selectedObject.name}", this);
         }
@@ -151,6 +150,7 @@ namespace ShadowPath.Interaction
             }
 
             state = InteractionState.Selecting;
+            moveInputArmed = false;
 
             if (!IsValidSelectable(selectedObject))
             {
@@ -206,15 +206,17 @@ namespace ShadowPath.Interaction
             }
         }
 
-        private void HandleNormalInput(Keyboard keyboard)
+        private void HandleNormalInput()
         {
-            if (nearbyStation != null && keyboard.eKey.wasPressedThisFrame)
+            if (nearbyStation != null
+                && GameplayInput.Interact != null
+                && GameplayInput.Interact.WasPressedThisFrame())
             {
                 EnterSelectionMode(nearbyStation);
             }
         }
 
-        private void HandleSelectingInput(Keyboard keyboard)
+        private void HandleSelectingInput()
         {
             if (currentStation == null)
             {
@@ -222,43 +224,25 @@ namespace ShadowPath.Interaction
                 return;
             }
 
-            if (keyboard.escapeKey.wasPressedThisFrame)
+            if (GameplayInput.Cancel != null && GameplayInput.Cancel.WasPressedThisFrame())
             {
                 ExitInteractionMode();
                 return;
             }
 
-            if (keyboard.eKey.wasPressedThisFrame)
+            if (GameplayInput.Interact != null && GameplayInput.Interact.WasPressedThisFrame())
             {
                 EnterRotatingMode();
                 return;
             }
 
-            if (keyboard.wKey.wasPressedThisFrame || keyboard.upArrowKey.wasPressedThisFrame)
+            if (TryReadMoveDirection(out Vector2 direction))
             {
-                TrySelectInDirection(Vector2.up);
-                return;
-            }
-
-            if (keyboard.sKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame)
-            {
-                TrySelectInDirection(Vector2.down);
-                return;
-            }
-
-            if (keyboard.aKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame)
-            {
-                TrySelectInDirection(Vector2.left);
-                return;
-            }
-
-            if (keyboard.dKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame)
-            {
-                TrySelectInDirection(Vector2.right);
+                TrySelectInDirection(direction);
             }
         }
 
-        private void HandleRotatingInput(Keyboard keyboard)
+        private void HandleRotatingInput()
         {
             if (currentStation == null)
             {
@@ -272,7 +256,11 @@ namespace ShadowPath.Interaction
                 return;
             }
 
-            if (keyboard.eKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame)
+            bool interactPressed = GameplayInput.Interact != null
+                && GameplayInput.Interact.WasPressedThisFrame();
+            bool cancelPressed = GameplayInput.Cancel != null
+                && GameplayInput.Cancel.WasPressedThisFrame();
+            if (interactPressed || cancelPressed)
             {
                 ReturnToSelectionMode();
                 return;
@@ -283,15 +271,44 @@ namespace ShadowPath.Interaction
                 return;
             }
 
-            if (keyboard.aKey.wasPressedThisFrame || keyboard.leftArrowKey.wasPressedThisFrame)
+            if (!TryReadMoveDirection(out Vector2 direction) || Mathf.Abs(direction.x) < 1f)
             {
-                selectedObject.RotateNegative();
+                return;
             }
 
-            if (keyboard.dKey.wasPressedThisFrame || keyboard.rightArrowKey.wasPressedThisFrame)
+            if (direction.x < 0f)
             {
-                selectedObject.RotatePositive();
+                selectedObject.RotateNegative();
+                return;
             }
+
+            selectedObject.RotatePositive();
+        }
+
+        private bool TryReadMoveDirection(out Vector2 direction)
+        {
+            direction = Vector2.zero;
+            Vector2 move = GameplayInput.Move == null
+                ? Vector2.zero
+                : GameplayInput.Move.ReadValue<Vector2>();
+            float threshold = Mathf.Clamp01(moveInputThreshold);
+
+            if (move.magnitude < threshold)
+            {
+                moveInputArmed = true;
+                return false;
+            }
+
+            if (!moveInputArmed)
+            {
+                return false;
+            }
+
+            moveInputArmed = false;
+            direction = Mathf.Abs(move.x) >= Mathf.Abs(move.y)
+                ? new Vector2(Mathf.Sign(move.x), 0f)
+                : new Vector2(0f, Mathf.Sign(move.y));
+            return true;
         }
 
         private void SelectFirstValidObject()

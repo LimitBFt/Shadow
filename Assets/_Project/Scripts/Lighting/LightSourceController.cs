@@ -1,14 +1,12 @@
+using ShadowPath.Input;
 using UnityEngine;
-
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-using UnityEngine.InputSystem;
-#endif
 
 namespace ShadowPath.Lighting
 {
     public class LightSourceController : MonoBehaviour
     {
         [SerializeField] private float moveSpeed = 4f;
+        [SerializeField] private float gamepadLightMoveSpeed = 2.5f;
         [SerializeField] private bool clampMovement = true;
         [SerializeField] private Vector2 minPosition = new Vector2(-5f, -3f);
         [SerializeField] private Vector2 maxPosition = new Vector2(5f, 3f);
@@ -17,6 +15,7 @@ namespace ShadowPath.Lighting
 
         private void Awake()
         {
+            GameplayInput.TryInitialize(this);
             initialZ = transform.position.z;
         }
 
@@ -34,8 +33,12 @@ namespace ShadowPath.Lighting
             }
 
             Vector3 position = transform.position;
-            position.x += input.x * Mathf.Max(0f, moveSpeed) * Time.deltaTime;
-            position.y += input.y * Mathf.Max(0f, moveSpeed) * Time.deltaTime;
+            float activeMoveSpeed = GameplayInput.IsLightMoveFromGamepad()
+                ? gamepadLightMoveSpeed
+                : moveSpeed;
+            activeMoveSpeed = Mathf.Max(0f, activeMoveSpeed);
+            position.x += input.x * activeMoveSpeed * Time.deltaTime;
+            position.y += input.y * activeMoveSpeed * Time.deltaTime;
 
             if (clampMovement)
             {
@@ -49,57 +52,9 @@ namespace ShadowPath.Lighting
 
         private static Vector2 ReadMoveInput()
         {
-            Vector2 input = Vector2.zero;
-
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return Vector2.zero;
-            }
-
-            if (keyboard.leftArrowKey.isPressed)
-            {
-                input.x -= 1f;
-            }
-
-            if (keyboard.rightArrowKey.isPressed)
-            {
-                input.x += 1f;
-            }
-
-            if (keyboard.downArrowKey.isPressed)
-            {
-                input.y -= 1f;
-            }
-
-            if (keyboard.upArrowKey.isPressed)
-            {
-                input.y += 1f;
-            }
-#else
-            if (Input.GetKey(KeyCode.LeftArrow))
-            {
-                input.x -= 1f;
-            }
-
-            if (Input.GetKey(KeyCode.RightArrow))
-            {
-                input.x += 1f;
-            }
-
-            if (Input.GetKey(KeyCode.DownArrow))
-            {
-                input.y -= 1f;
-            }
-
-            if (Input.GetKey(KeyCode.UpArrow))
-            {
-                input.y += 1f;
-            }
-#endif
-
-            return input;
+            return GameplayInput.LightMove == null
+                ? Vector2.zero
+                : GameplayInput.LightMove.ReadValue<Vector2>();
         }
 
         private void OnDrawGizmosSelected()
