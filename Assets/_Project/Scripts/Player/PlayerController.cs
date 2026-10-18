@@ -1,4 +1,5 @@
 using ShadowPath.Input;
+using ShadowPath.Lighting;
 using UnityEngine;
 
 namespace ShadowPath.Player
@@ -11,6 +12,7 @@ namespace ShadowPath.Player
         [SerializeField] private float moveSpeed = 5f;
         [SerializeField] private float jumpForce = 7f;
         [SerializeField] private float groundCheckDistance = 0.08f;
+        [SerializeField] private LightGameplayArea lightGameplayArea;
         [SerializeField] private Vector3 pendingExternalDisplacement;
         [SerializeField] private Vector3 consumedExternalDisplacement;
 
@@ -55,7 +57,29 @@ namespace ShadowPath.Player
                 body.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
             }
 
-            ConsumeExternalDisplacement();
+            velocity = body.linearVelocity;
+            Vector3 targetPosition = ConsumeExternalDisplacement();
+            bool shouldMovePosition = targetPosition != body.position;
+            if (lightGameplayArea != null)
+            {
+                Vector3 constrainedPosition = lightGameplayArea.ConstrainPlayerWorldPosition(
+                    body.position,
+                    targetPosition);
+                shouldMovePosition |= constrainedPosition != body.position;
+                targetPosition = constrainedPosition;
+                velocity = lightGameplayArea.ConstrainPlayerVelocity(
+                    targetPosition,
+                    velocity,
+                    Time.fixedDeltaTime);
+            }
+
+            velocity.z = 0f;
+            body.linearVelocity = velocity;
+            if (shouldMovePosition)
+            {
+                body.MovePosition(targetPosition);
+            }
+
             jumpRequested = false;
         }
 
@@ -70,16 +94,11 @@ namespace ShadowPath.Player
             pendingExternalDisplacement += displacement;
         }
 
-        private void ConsumeExternalDisplacement()
+        private Vector3 ConsumeExternalDisplacement()
         {
             consumedExternalDisplacement = pendingExternalDisplacement;
             pendingExternalDisplacement = Vector3.zero;
-            if (consumedExternalDisplacement == Vector3.zero)
-            {
-                return;
-            }
-
-            body.MovePosition(body.position + consumedExternalDisplacement);
+            return body.position + consumedExternalDisplacement;
         }
 
         private void OnDisable()
