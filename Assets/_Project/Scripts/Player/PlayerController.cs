@@ -47,37 +47,31 @@ namespace ShadowPath.Player
             Vector3 velocity = body.linearVelocity;
             velocity.x = moveInput * moveSpeed;
             velocity.z = 0f;
-            body.linearVelocity = velocity;
-
             if (jumpRequested && grounded)
             {
-                Vector3 jumpVelocity = body.linearVelocity;
-                jumpVelocity.y = Mathf.Max(0f, jumpVelocity.y);
-                body.linearVelocity = jumpVelocity;
-                body.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
+                // Assemble the same VelocityChange impulse before the final movement constraint.
+                // AddForce queues an impulse for physics, where it could bypass this frame's constraint.
+                velocity.y = Mathf.Max(0f, velocity.y) + jumpForce;
             }
 
-            velocity = body.linearVelocity;
-            Vector3 targetPosition = ConsumeExternalDisplacement();
-            bool shouldMovePosition = targetPosition != body.position;
+            Vector3 externalDisplacement = ConsumeExternalDisplacement() - body.position;
             if (lightGameplayArea != null)
             {
-                Vector3 constrainedPosition = lightGameplayArea.ConstrainPlayerWorldPosition(
-                    body.position,
-                    targetPosition);
-                shouldMovePosition |= constrainedPosition != body.position;
-                targetPosition = constrainedPosition;
-                velocity = lightGameplayArea.ConstrainPlayerVelocity(
-                    targetPosition,
-                    velocity,
-                    Time.fixedDeltaTime);
+                float dt = Time.fixedDeltaTime;
+                Vector3 gravityStep = body.useGravity ? Physics.gravity * dt : Vector3.zero;
+                gravityStep.z = 0f;
+                lightGameplayArea.ConstrainPlayerMovement(body.position, externalDisplacement,
+                    velocity + gravityStep, dt, out externalDisplacement, out Vector3 constrainedVelocity);
+                // Unity still integrates gravity normally. Account for its upcoming step so it
+                // cannot push the body through the lower circle edge after FixedUpdate finishes.
+                velocity = constrainedVelocity - gravityStep;
             }
 
             velocity.z = 0f;
             body.linearVelocity = velocity;
-            if (shouldMovePosition)
+            if (externalDisplacement.sqrMagnitude > 0.0000000001f)
             {
-                body.MovePosition(targetPosition);
+                body.MovePosition(body.position + externalDisplacement);
             }
 
             jumpRequested = false;

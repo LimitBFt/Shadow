@@ -20,11 +20,11 @@ RenderSettings:
   m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
-  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
-  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
+  m_AmbientSkyColor: {r: 0.06, g: 0.07, b: 0.085, a: 1}
+  m_AmbientEquatorColor: {r: 0.035, g: 0.042, b: 0.055, a: 1}
+  m_AmbientGroundColor: {r: 0.02, g: 0.024, b: 0.032, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 0
+  m_AmbientMode: 1
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
   m_HaloStrength: 0.5
@@ -371,7 +371,7 @@ GameObject:
   - component: {fileID: 245664383}
   - component: {fileID: 245664382}
   m_Layer: 0
-  m_Name: Point Light
+  m_Name: VisualSpotLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -385,7 +385,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 245664380}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0.012902399, y: -0.000024112882, z: -0.010549577, w: 0.9998611}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -404,12 +404,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
-  m_UsePipelineSettings: 1
+  m_UsePipelineSettings: 0
   m_AdditionalLightsShadowResolutionTier: 2
   m_CustomShadowLayers: 0
   m_LightCookieSize: {x: 1, y: 1}
   m_LightCookieOffset: {x: 0, y: 0}
-  m_SoftShadowQuality: 0
+  m_SoftShadowQuality: 3
   m_RenderingLayersMask:
     serializedVersion: 0
     m_Bits: 1
@@ -430,20 +430,20 @@ Light:
   m_GameObject: {fileID: 245664380}
   m_Enabled: 1
   serializedVersion: 13
-  m_Type: 2
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 997
+  m_Type: 0
+  m_Color: {r: 1, g: 0.93, b: 0.84, a: 1}
+  m_Intensity: 180
   m_Range: 22.9
-  m_SpotAngle: 30
-  m_InnerSpotAngle: 21.80208
+  m_SpotAngle: 92.980194
+  m_InnerSpotAngle: 83.682175
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
-    m_Type: 1
+    m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
-    m_Strength: 1
-    m_Bias: 0.05
-    m_NormalBias: 0.4
+    m_Strength: 0.9
+    m_Bias: 0.03
+    m_NormalBias: 0.15
     m_NearPlane: 0.2
     m_CullingMatrixOverride:
       e00: 1
@@ -477,7 +477,7 @@ Light:
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
-  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_BoundingSphereOverride: {x: 0, y: 2.0534424e-22, z: 2.7210908e-20, w: 9.1846e-40}
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
@@ -849,6 +849,89 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!1 &345813001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 345813004}
+  - component: {fileID: 345813003}
+  - component: {fileID: 345813002}
+  m_Layer: 5
+  m_Name: GameplayMaskCanvas
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &345813002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 345813001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d1bc74846884fa8bd6c3a6578a4b647, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Lighting.LightGameplayMaskController
+  gameplayArea: {fileID: 1845754002}
+  gameplayCamera: {fileID: 330585545}
+  darknessMask: {fileID: 563003563}
+  maskMaterialTemplate: {fileID: 2100000, guid: f0bd748940ba332418f21fbca8d45c8e, type: 2}
+  currentViewportCenter: {x: 0, y: 0}
+  currentViewportRadius: {x: 0, y: 0}
+  maskMaterialAssigned: 0
+  cameraAssigned: 0
+  gameplayAreaAssigned: 0
+--- !u!223 &345813003
+Canvas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 345813001}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_RenderMode: 0
+  m_Camera: {fileID: 0}
+  m_PlaneDistance: 100
+  m_PixelPerfect: 0
+  m_ReceivesEvents: 1
+  m_OverrideSorting: 0
+  m_OverridePixelPerfect: 0
+  m_SortingBucketNormalizedSize: 0
+  m_VertexColorAlwaysGammaSpace: 0
+  m_UseReflectionProbes: 0
+  m_AdditionalShaderChannelsFlag: 0
+  m_UpdateRectTransformForStandalone: 0
+  m_SortingLayerID: 0
+  m_SortingOrder: 10
+  m_TargetDisplay: 0
+--- !u!224 &345813004
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 345813001}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 563003565}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0, y: 0}
 --- !u!1 &371410211
 GameObject:
   m_ObjectHideFlags: 0
@@ -1457,6 +1540,81 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &563003562
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 563003565}
+  - component: {fileID: 563003564}
+  - component: {fileID: 563003563}
+  m_Layer: 5
+  m_Name: DarknessMask
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &563003563
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 563003562}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 2100000, guid: f0bd748940ba332418f21fbca8d45c8e, type: 2}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &563003564
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 563003562}
+  m_CullTransparentMesh: 1
+--- !u!224 &563003565
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 563003562}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 345813004}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &567839609
 GameObject:
   m_ObjectHideFlags: 0
@@ -1538,7 +1696,7 @@ Canvas:
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 20
   m_TargetDisplay: 0
 --- !u!224 &567839613
 RectTransform:
@@ -1978,14 +2136,25 @@ MonoBehaviour:
   planeRightOffset: 0
   planeUpOffset: 4
   planeNormalOffset: -11
-  horizontalSmoothTime: 0.45
-  verticalSmoothTime: 0.85
-  lookAheadDistance: 1
-  lookAheadSmoothTime: 0.5
-  lookAheadVelocityThreshold: 0.05
   aimRightOffset: 0
   aimUpOffset: 1
-  rotationSmoothTime: 0.7
+  horizontalSmoothTime: 0.45
+  verticalSmoothTime: 0.75
+  maxFollowSpeed: 8
+  horizontalDeadZone: 0.6
+  verticalDeadZone: 0.35
+  enableLookAhead: 1
+  lookAheadDistance: 1
+  lookAheadSmoothTime: 0.65
+  lookAheadMaxSpeed: 3
+  lookAheadVelocityThreshold: 0.05
+  rotationSmoothTime: 0.65
+  catchUpDistance: 4
+  catchUpMultiplier: 1.8
+  currentTargetPlanePosition: {x: 0, y: 0}
+  currentCameraPlanePosition: {x: 0, y: 0}
+  currentLookAhead: 0
+  currentFollowError: 0
 --- !u!4 &940179930
 Transform:
   m_ObjectHideFlags: 0
@@ -2569,7 +2738,7 @@ Transform:
   m_GameObject: {fileID: 1329226617}
   serializedVersion: 2
   m_LocalRotation: {x: 0.013905839, y: 0.000013525473, z: 0.010549596, w: 0.9998477}
-  m_LocalPosition: {x: -5.69036, y: 3, z: -11.64}
+  m_LocalPosition: {x: -12.98, y: 3, z: -11.64}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2589,17 +2758,38 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Lighting.LightSourceController
   projectionPlane: {fileID: 1803803047}
-  lightGameplayArea: {fileID: 0}
+  lightGameplayArea: {fileID: 1845754002}
   minLevelLightPosition: {x: -12, y: -5}
   maxLevelLightPosition: {x: 12, y: 8}
-  keyboardMoveSpeed: 4
-  gamepadMoveSpeed: 2.5
+  horizontalMaxSpeed: 3
+  verticalMaxSpeed: 2.5
+  acceleration: 7
+  deceleration: 8
+  turnAcceleration: 10
+  keyboardInputSmoothing: 0.08
+  gamepadDeadZone: 0.15
+  gamepadResponseExponent: 1.5
+  legacyGamepadMoveSpeed: 2.5
   currentLightPlanePosition: {x: 0, y: 0}
   signedNormalDistance: 0
   initialWorldPosition: {x: 0, y: 0, z: 0}
   reconstructedWorldPosition: {x: 0, y: 0, z: 0}
   planeNormal: {x: 0, y: 0, z: 0}
   initializationDelta: 0
+  initialLightPlanePosition: {x: 0, y: 0}
+  playerPlanePosition: {x: 0, y: 0}
+  allowedLightMinX: 0
+  allowedLightMaxX: 0
+  initialGameplayConstraintValid: 0
+  rawProposedLightPosition: {x: 0, y: 0}
+  finalLightPosition: {x: 0, y: 0}
+  lastClampCorrection: {x: 0, y: 0}
+  rawInput: {x: 0, y: 0}
+  processedInput: {x: 0, y: 0}
+  desiredPlaneVelocity: {x: 0, y: 0}
+  currentPlaneVelocity: {x: 0, y: 0}
+  isLevelBoundsBlocking: 0
+  isGameplayCircleBlocking: 0
 --- !u!1 &1388865888
 GameObject:
   m_ObjectHideFlags: 0
@@ -3034,7 +3224,7 @@ MonoBehaviour:
   moveSpeed: 5
   jumpForce: 7
   groundCheckDistance: 0.33
-  lightGameplayArea: {fileID: 0}
+  lightGameplayArea: {fileID: 1845754002}
   pendingExternalDisplacement: {x: 0, y: 0, z: 0}
   consumedExternalDisplacement: {x: 0, y: 0, z: 0}
 --- !u!54 &1689364680
@@ -3205,6 +3395,96 @@ Transform:
   - {fileID: 1008436980}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0.115, y: 0, z: 0}
+--- !u!1 &1845754001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1845754003}
+  - component: {fileID: 1845754002}
+  m_Layer: 0
+  m_Name: LightGameplayArea
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1845754002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1845754001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97b1737d711e487191a2767e79ccb9ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Lighting.LightGameplayArea
+  projectionPlane: {fileID: 1803803047}
+  lightSource: {fileID: 1329226618}
+  player: {fileID: 1689364682}
+  gameplayCamera: {fileID: 330585545}
+  spotLight: {fileID: 245664383}
+  lightSizeMode: 1
+  targetLightRadius: 10
+  innerAngleRatio: 0.9
+  boundaryMode: 1
+  gameplayBoundaryInset: 0.2
+  gameplayHalfWidth: 3.5
+  playerSafetyMargin: 0.25
+  visualRadius: {x: 4.1, y: 2.7}
+  visualFeather: 0.05
+  outsideDarkness: 1
+  drawGizmos: 1
+  lightPlanePosition: {x: 0, y: 0}
+  gameplayCenterPlanePosition: {x: 0, y: 0}
+  playerPlanePosition: {x: -9.77841, y: 5.6799245}
+  leftGameplayBoundary: 0
+  rightGameplayBoundary: 0
+  playerInsideArea: 0
+  spotLightAssigned: 1
+  calculatedSpotAngle: 92.980194
+  actualSpotAngle: 92.980194
+  targetRadiusAngleLimited: 0
+  lightToPlaneDistance: 9.492931
+  calculatedSpotRadius: 10
+  effectiveGameplayHalfWidth: 9.8
+  spotGeometryValid: 1
+  spotHorizontalRadiusAtPlayerHeight: 9.061775
+  effectiveGameplayRadius: 0
+  gameplayHorizontalRadiusAtPlayerHeight: 0
+  playerDeltaX: 0
+  playerDeltaY: 0
+  playerDistanceFromLightCenter: 0
+  playerInsideGameplayCircle: 0
+  playerOutsideVerticalLightRange: 0
+  boundaryContact: 0
+  blockedOutwardPlaneVelocity: {x: 0, y: 0}
+  blockedOutwardPlaneDisplacement: {x: 0, y: 0}
+  playerPlaneX: -9.77841
+  initialLightPlaneX: 0
+  allowedLightMinX: -19.328411
+  allowedLightMaxX: -0.22840977
+  initialPositionValid: 0
+--- !u!4 &1845754003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1845754001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -7.53975, y: 1.94, z: 38.99144}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1849205799
 GameObject:
   m_ObjectHideFlags: 0
@@ -3798,3 +4078,5 @@ SceneRoots:
   - {fileID: 874520576}
   - {fileID: 166053332}
   - {fileID: 940179930}
+  - {fileID: 1845754003}
+  - {fileID: 345813004}

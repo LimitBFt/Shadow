@@ -180,18 +180,18 @@ namespace ShadowPath.Shadow
 
             if (sourceLight == null)
             {
-                WarnInvalidSourceLight("ShadowSystem requires a Point Light sourceLight for automatic ShadowCaster detection.");
+                WarnInvalidSourceLight("ShadowSystem requires a Point or Spot sourceLight for automatic ShadowCaster detection.");
                 return null;
             }
 
-            if (sourceLight.type != LightType.Point)
+            if (sourceLight.type != LightType.Point && sourceLight.type != LightType.Spot)
             {
-                WarnInvalidSourceLight("ShadowSystem automatic ShadowCaster detection only supports Point Light.");
+                WarnInvalidSourceLight("ShadowSystem automatic ShadowCaster detection only supports Point or Spot Light.");
                 return null;
             }
 
             warnedInvalidSourceLight = false;
-            return sourceLight.transform;
+            return lightSource != null ? lightSource : sourceLight.transform;
         }
 
         private void WarnInvalidSourceLight(string message)
@@ -217,7 +217,7 @@ namespace ShadowPath.Shadow
             {
                 if (!generatedShadows.ContainsKey(caster))
                 {
-                    TryAddGeneratedShadow(caster, casterIndex, sourceLight.transform);
+                    TryAddGeneratedShadow(caster, casterIndex, GetRuntimeLightTransform());
                 }
 
                 casterIndex++;
@@ -228,7 +228,7 @@ namespace ShadowPath.Shadow
 
         private bool TryCollectShadowCastersInRange()
         {
-            if (sourceLight == null || sourceLight.type != LightType.Point)
+            if (sourceLight == null || (sourceLight.type != LightType.Point && sourceLight.type != LightType.Spot))
             {
                 return false;
             }
@@ -236,7 +236,7 @@ namespace ShadowPath.Shadow
             EnsureDetectionBuffer();
             detectedShadowCasters.Clear();
             int hitCount = Physics.OverlapSphereNonAlloc(
-                sourceLight.transform.position,
+                GetRuntimeLightTransform().position,
                 sourceLight.range,
                 detectionBuffer,
                 shadowCasterMask,
@@ -374,7 +374,7 @@ namespace ShadowPath.Shadow
                 return lightSource;
             }
 
-            if (sourceLight != null && sourceLight.type == LightType.Point)
+            if (sourceLight != null && (sourceLight.type == LightType.Point || sourceLight.type == LightType.Spot))
             {
                 return sourceLight.transform;
             }

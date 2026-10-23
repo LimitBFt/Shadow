@@ -89,7 +89,7 @@ Shader "ShadowPath/UI/Light Gameplay Mask"
                 float feather = max(_Feather, 0.0001);
                 float darkness = smoothstep(1.0 - feather, 1.0, ellipseDistance);
                 float alpha = darkness * saturate(_OutsideDarkness) * _Color.a * input.color.a;
-                return half4(_Color.rgb * input.color.rgb, alpha);
+                return half4(0, 0, 0, alpha);
             }
             ENDHLSL
         }
