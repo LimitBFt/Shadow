@@ -2,6 +2,13 @@ using UnityEngine;
 
 namespace ShadowPath.Camera
 {
+    public enum CameraRotationMode
+    {
+        Fixed,
+        LimitedFollow,
+        FullFollow
+    }
+
     public class CameraFollowController : MonoBehaviour
     {
         [Header("References")]
@@ -32,13 +39,21 @@ namespace ShadowPath.Camera
         [SerializeField, Min(0f)] private float lookAheadVelocityThreshold = 0.05f;
 
         [Header("Rotation")]
-        [SerializeField, Min(0f)] private float rotationSmoothTime = 0.65f;
+        [SerializeField] private CameraRotationMode rotationMode = CameraRotationMode.LimitedFollow;
+        [SerializeField, Range(0f, 85f)] private float maxHorizontalAimAngle = 2.5f;
+        [SerializeField, Range(0f, 85f)] private float maxVerticalAimAngle = 2f;
+        [SerializeField, Min(0f)] private float rotationSmoothTime = 0.35f;
 
         [Header("Catch Up")]
         [SerializeField, Min(0f)] private float catchUpDistance = 4f;
         [SerializeField, Min(1f)] private float catchUpMultiplier = 1.8f;
 
         [Header("Debug")]
+        [SerializeField] private Quaternion initialCameraRotation;
+        [SerializeField] private float currentHorizontalAimAngle;
+        [SerializeField] private float currentVerticalAimAngle;
+        [SerializeField] private float targetHorizontalAimAngle;
+        [SerializeField] private float targetVerticalAimAngle;
         [SerializeField] private Vector2 currentTargetPlanePosition;
         [SerializeField] private Vector2 currentCameraPlanePosition;
         [SerializeField] private float currentLookAhead;
@@ -54,6 +69,11 @@ namespace ShadowPath.Camera
         private bool horizontalFollowActive;
         private float currentCatchUpGain = 1f;
         private bool initialized;
+        private bool rotationInitialized;
+        private Vector3 initialCameraEuler;
+        private float horizontalAimVelocity;
+        private float verticalAimVelocity;
+        private CameraRotationMode previousRotationMode;
 
         private void OnEnable()
         {
@@ -100,9 +120,7 @@ namespace ShadowPath.Camera
                 planeUp,
                 planeNormal);
 
-            Vector3 aimPoint = CalculateAimPoint(planeRight, planeUp, currentLookAhead);
-            Quaternion desiredRotation = CalculateDesiredRotation(transform.position, aimPoint, planeUp);
-            transform.rotation = SmoothRotation(transform.rotation, desiredRotation);
+            UpdateRotation(planeRight, planeUp, planeNormal);
 
             previousTargetPosition = target.position;
             RefreshDebug(desiredPosition, planeRight, planeUp);
@@ -130,8 +148,16 @@ namespace ShadowPath.Camera
             horizontalFollowActive = false;
 
             transform.position = CalculateDesiredPosition(planeRight, planeUp, planeNormal, 0f);
-            Vector3 aimPoint = CalculateAimPoint(planeRight, planeUp, 0f);
-            transform.rotation = CalculateDesiredRotation(transform.position, aimPoint, planeUp);
+            if (!rotationInitialized)
+            {
+                // Preserve the existing startup composition, then keep this base for the Play session.
+                Vector3 aimPoint = CalculateAimPoint(planeRight, planeUp, 0f);
+                initialCameraRotation = CalculateDesiredRotation(transform.position, aimPoint, planeUp);
+                initialCameraEuler = initialCameraRotation.eulerAngles;
+                rotationInitialized = true;
+                previousRotationMode = rotationMode;
+                transform.rotation = initialCameraRotation;
+            }
 
             previousTargetPosition = target.position;
             initialized = true;
@@ -250,6 +276,85 @@ namespace ShadowPath.Camera
             return Quaternion.Slerp(currentRotation, desiredRotation, interpolation);
         }
 
+        private void UpdateRotation(Vector3 planeRight, Vector3 planeUp, Vector3 planeNormal)
+        {
+            if (previousRotationMode != rotationMode)
+            {
+                previousRotationMode = rotationMode;
+                horizontalAimVelocity = verticalAimVelocity = 0f;
+                Vector3 currentEuler = transform.rotation.eulerAngles;
+                currentHorizontalAimAngle = Mathf.DeltaAngle(initialCameraEuler.y, currentEuler.y);
+                currentVerticalAimAngle = Mathf.DeltaAngle(initialCameraEuler.x, currentEuler.x);
+            }
+
+            targetHorizontalAimAngle = targetVerticalAimAngle = 0f;
+            if (rotationMode == CameraRotationMode.Fixed)
+            {
+                currentHorizontalAimAngle = currentVerticalAimAngle = 0f;
+                horizontalAimVelocity = verticalAimVelocity = 0f;
+                transform.rotation = initialCameraRotation;
+                return;
+            }
+
+            if (rotationMode == CameraRotationMode.FullFollow)
+            {
+                Vector3 aimPoint = CalculateAimPoint(planeRight, planeUp, currentLookAhead);
+                Quaternion desired = CalculateDesiredRotation(transform.position, aimPoint, planeUp);
+                Vector3 desiredEuler = desired.eulerAngles;
+                targetHorizontalAimAngle = Mathf.DeltaAngle(initialCameraEuler.y, desiredEuler.y);
+                targetVerticalAimAngle = Mathf.DeltaAngle(initialCameraEuler.x, desiredEuler.x);
+                Vector3 smoothedEuler = SmoothRotation(transform.rotation, desired).eulerAngles;
+                transform.rotation = Quaternion.Euler(smoothedEuler.x, smoothedEuler.y, initialCameraEuler.z);
+                currentHorizontalAimAngle = Mathf.DeltaAngle(initialCameraEuler.y, smoothedEuler.y);
+                currentVerticalAimAngle = Mathf.DeltaAngle(initialCameraEuler.x, smoothedEuler.x);
+                return;
+            }
+
+            // Recover the framing target from the actual smoothed position, without changing position follow.
+            Vector3 framingTarget = transform.position
+                - planeRight * (planeRightOffset + currentLookAhead)
+                - planeUp * planeUpOffset - planeNormal * planeNormalOffset;
+            Vector3 delta = target.position - framingTarget;
+            float horizontalExcess = CameraRotationMath.DeadZoneExcess(Vector3.Dot(delta, planeRight), horizontalDeadZone);
+            float verticalExcess = CameraRotationMath.DeadZoneExcess(Vector3.Dot(delta, planeUp), verticalDeadZone);
+            Vector3 localAimOffset = Quaternion.Inverse(initialCameraRotation)
+                * (planeRight * horizontalExcess + planeUp * verticalExcess);
+            Vector3 baseAimPoint = framingTarget + planeRight * (aimRightOffset + currentLookAhead)
+                + planeUp * aimUpOffset;
+            float depth = Mathf.Abs(Vector3.Dot(baseAimPoint - transform.position,
+                initialCameraRotation * Vector3.forward));
+            targetHorizontalAimAngle = CameraRotationMath.ClampedAimAngle(localAimOffset.x, depth, maxHorizontalAimAngle);
+            targetVerticalAimAngle = CameraRotationMath.ClampedAimAngle(-localAimOffset.y, depth, maxVerticalAimAngle);
+            float dt = Time.deltaTime;
+            if (rotationSmoothTime <= 0f)
+            {
+                currentHorizontalAimAngle = targetHorizontalAimAngle;
+                currentVerticalAimAngle = targetVerticalAimAngle;
+                horizontalAimVelocity = verticalAimVelocity = 0f;
+            }
+            else if (dt > 0f)
+            {
+                currentHorizontalAimAngle = Mathf.SmoothDamp(currentHorizontalAimAngle, targetHorizontalAimAngle,
+                    ref horizontalAimVelocity, rotationSmoothTime, Mathf.Infinity, dt);
+                currentVerticalAimAngle = Mathf.SmoothDamp(currentVerticalAimAngle, targetVerticalAimAngle,
+                    ref verticalAimVelocity, rotationSmoothTime, Mathf.Infinity, dt);
+            }
+            // Clamp current angles too, including after switching from FullFollow or reducing limits at runtime.
+            currentHorizontalAimAngle = ClampCurrentAim(currentHorizontalAimAngle, maxHorizontalAimAngle, ref horizontalAimVelocity);
+            currentVerticalAimAngle = ClampCurrentAim(currentVerticalAimAngle, maxVerticalAimAngle, ref verticalAimVelocity);
+            // Compose Euler yaw/pitch explicitly: quaternion interpolation can introduce unwanted roll.
+            transform.rotation = Quaternion.Euler(initialCameraEuler.x + currentVerticalAimAngle,
+                initialCameraEuler.y + currentHorizontalAimAngle, initialCameraEuler.z);
+        }
+
+        private static float ClampCurrentAim(float angle, float maximum, ref float velocity)
+        {
+            float limit = Mathf.Clamp(maximum, 0f, 85f);
+            float clamped = Mathf.Clamp(angle, -limit, limit);
+            if (clamped != angle) velocity = 0f;
+            return clamped;
+        }
+
         private Vector3 CalculateDesiredPosition(
             Vector3 planeRight,
             Vector3 planeUp,
@@ -308,6 +413,8 @@ namespace ShadowPath.Camera
             lookAheadMaxSpeed = Mathf.Max(0f, lookAheadMaxSpeed);
             lookAheadVelocityThreshold = Mathf.Max(0f, lookAheadVelocityThreshold);
             rotationSmoothTime = Mathf.Max(0f, rotationSmoothTime);
+            maxHorizontalAimAngle = Mathf.Clamp(maxHorizontalAimAngle, 0f, 85f);
+            maxVerticalAimAngle = Mathf.Clamp(maxVerticalAimAngle, 0f, 85f);
             catchUpDistance = Mathf.Max(0f, catchUpDistance);
             catchUpMultiplier = Mathf.Max(1f, catchUpMultiplier);
         }

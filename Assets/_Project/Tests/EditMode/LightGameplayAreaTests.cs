@@ -41,15 +41,15 @@ namespace ShadowPath.Tests.EditMode
         }
 
         [Test]
-        public void AllowedRange_ReservesPlayerSafetyMargin()
+        public void AllowedRange_UsesTheSameEffectiveRadiusAsPlayer()
         {
             Assert.That(area.TryGetAllowedLightRange(out float minimum, out float maximum), Is.True);
-            Assert.That(minimum, Is.EqualTo(-13.02841f).Within(0.00001f));
-            Assert.That(maximum, Is.EqualTo(-6.52841f).Within(0.00001f));
+            Assert.That(minimum, Is.EqualTo(-13.27841f).Within(0.00001f));
+            Assert.That(maximum, Is.EqualTo(-6.27841f).Within(0.00001f));
         }
 
         [Test]
-        public void InvalidInitialPosition_WarnsAndNeverTeleportsOnInput()
+        public void InvalidInitialPosition_WarnsButAllowsInputSizedRecovery()
         {
             light.position = new Vector3(-2.48877f, 1f, -9f);
             Vector3 initialWorldPosition = light.position;
@@ -57,9 +57,9 @@ namespace ShadowPath.Tests.EditMode
             Assert.That(area.InitializeLightConstraint(), Is.False);
             Assert.That(area.InitializeLightConstraint(), Is.False);
             Vector2 proposed = new Vector2(-2.5f, 1f);
-            Assert.That(area.ClampLightPlanePosition(proposed), Is.EqualTo(new Vector2(-2.48877f, 1f)));
+            Assert.That(area.ClampLightPlanePosition(proposed), Is.EqualTo(proposed));
             Assert.That(light.position, Is.EqualTo(initialWorldPosition));
-            // Moving the Player later must not silently enable an invalid initial session.
+            // The debug snapshot remains invalid; it no longer latches movement off.
             player.position = light.position;
             Assert.That(area.InitializeLightConstraint(), Is.False);
         }
@@ -89,9 +89,9 @@ namespace ShadowPath.Tests.EditMode
         {
             area.TryGetAllowedLightRange(out float minimum, out float maximum);
             float boundary = direction > 0f ? maximum : minimum;
-            light.position = new Vector3(boundary, 1f, 0f);
+            light.position = new Vector3(boundary, 0f, 0f);
             Assert.That(area.InitializeLightConstraint(), Is.True);
-            Vector2 current = new Vector2(boundary, 1f);
+            Vector2 current = new Vector2(boundary, 0f);
             for (int i = 0; i < 120; i++)
             {
                 current = area.ClampLightPlanePosition(current + Vector2.right * direction * 0.1f);
@@ -251,7 +251,7 @@ namespace ShadowPath.Tests.EditMode
         }
 
         [Test]
-        public void CircleInitialization_RejectsVerticalInvalidityWithoutFirstInputSnap()
+        public void CircleInitialization_ReportsVerticalInvalidityButAllowsRecoveryWithoutSnap()
         {
             ConfigureSpot();
             player.position = new Vector3(light.position.x, 20f, 0f);
@@ -259,8 +259,8 @@ namespace ShadowPath.Tests.EditMode
             LogAssert.Expect(LogType.Warning, new Regex("Initial Light gameplay constraint is INVALID"));
             Assert.That(area.InitializeLightConstraint(), Is.False);
             Assert.That(area.TryConstrainLightPlanePosition(current, current + Vector2.up * 0.1f,
-                Vector2.one * -100f, Vector2.one * 100f, out Vector2 final), Is.False);
-            Assert.That(final, Is.EqualTo(current));
+                Vector2.one * -100f, Vector2.one * 100f, out Vector2 final), Is.True);
+            Assert.That(final, Is.EqualTo(current + Vector2.up * 0.1f));
         }
 
         [Test]
@@ -297,6 +297,31 @@ namespace ShadowPath.Tests.EditMode
             Assert.That(final, Is.EqualTo(current + Vector2.up * 0.1f));
             area.TryConstrainLightPlanePosition(current, current - Vector2.up * 0.1f, minimum, maximum, out final);
             Assert.That(final, Is.EqualTo(current));
+        }
+
+        [Test]
+        public void LightApproachingPlayerOnLeft_IsAllowedWithVerticalSeparation()
+        {
+            ConfigureSpot();
+            light.position += Vector3.right * 3f;
+            Assert.That(area.InitializeLightConstraint(), Is.True);
+            Vector2 current = new Vector2(light.position.x, light.position.y);
+            Vector2 proposed = current + Vector2.left * 0.1f;
+            Assert.That(area.TryConstrainLightPlanePosition(current, proposed, out Vector2 final), Is.True);
+            Assert.That(final, Is.EqualTo(proposed));
+        }
+
+        [Test]
+        public void PlayerOutsideCircle_InwardPhysicsStepIsPreservedWithoutSnap()
+        {
+            ConfigureSpot();
+            Vector3 current = new Vector3(light.position.x,
+                light.position.y + area.EffectiveGameplayHalfWidth + 0.02f, 0f);
+            Vector3 proposedVelocity = Vector3.down * 0.1f;
+            area.ConstrainPlayerMovement(current, Vector3.zero, proposedVelocity, 0.02f,
+                out Vector3 external, out Vector3 velocity);
+            Assert.That(velocity, Is.EqualTo(proposedVelocity));
+            Assert.That(external.magnitude, Is.LessThan(0.000001f));
         }
 
         private void SetField(string name, object value)

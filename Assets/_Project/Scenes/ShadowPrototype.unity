@@ -2148,7 +2148,10 @@ MonoBehaviour:
   lookAheadSmoothTime: 0.65
   lookAheadMaxSpeed: 3
   lookAheadVelocityThreshold: 0.05
-  rotationSmoothTime: 0.65
+  rotationMode: 1
+  maxHorizontalAimAngle: 2.5
+  maxVerticalAimAngle: 1.5
+  rotationSmoothTime: 0.35
   catchUpDistance: 4
   catchUpMultiplier: 1.8
   currentTargetPlanePosition: {x: 0, y: 0}
@@ -2759,6 +2762,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Lighting.LightSourceController
   projectionPlane: {fileID: 1803803047}
   lightGameplayArea: {fileID: 1845754002}
+  useLevelLightBounds: 0
   minLevelLightPosition: {x: -12, y: -5}
   maxLevelLightPosition: {x: 12, y: 8}
   horizontalMaxSpeed: 3

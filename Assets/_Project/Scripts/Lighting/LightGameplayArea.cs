@@ -9,7 +9,6 @@ namespace ShadowPath.Lighting
         public enum BoundaryMode { Manual, FromSpotLight }
         public enum LightSizeMode { SpotAngle, TargetRadius }
 
-        private const float SmallBoundaryCorrection = 0.05f;
         private const float MinimumAxisComponent = 0.0001f;
         private const int EllipseSegments = 48;
 
@@ -30,7 +29,7 @@ namespace ShadowPath.Lighting
         [SerializeField, Min(0f)] private float gameplayBoundaryInset = 0.2f;
         [Tooltip("Used only in Manual boundary mode.")]
         [SerializeField] private float gameplayHalfWidth = 5f;
-        [Tooltip("Additional margin for Manual mode only. Spot mode uses the Gameplay Boundary Inset circle.")]
+        [Tooltip("Legacy serialized margin. Mutual circle constraints use Effective Gameplay Radius on both sides.")]
         [SerializeField] private float playerSafetyMargin = 0.25f;
 
         [Header("Legacy UI Mask (not used by Spot Lighting)")]
@@ -80,6 +79,22 @@ namespace ShadowPath.Lighting
         [SerializeField, InspectorName("Initial Gameplay Constraint Valid")] private bool initialPositionValid;
 
         private bool lightConstraintInitialized;
+        private Transform cachedPlayer;
+        private Rigidbody playerBody;
+
+        private Vector3 PlayerSampleWorldPosition
+        {
+            get
+            {
+                if (cachedPlayer != player)
+                {
+                    cachedPlayer = player;
+                    playerBody = player != null ? player.GetComponent<Rigidbody>() : null;
+                }
+                // Match PlayerController's physics sample rather than the interpolated render pose.
+                return playerBody != null ? playerBody.position : player.position;
+            }
+        }
 
         public bool InitialPositionValid => initialPositionValid;
         public Vector2 PlayerPlanePosition => playerPlanePosition;
@@ -87,8 +102,17 @@ namespace ShadowPath.Lighting
         {
             radius = SafeGameplayHalfWidth;
             center = default;
-            return boundaryMode == BoundaryMode.FromSpotLight && spotGeometryValid
+            return (boundaryMode == BoundaryMode.Manual || spotGeometryValid)
                 && TryGetGameplayCenterPlanePosition(out center);
+        }
+
+        public bool TryGetMutualCircle(out Vector2 playerSample, out Vector2 lightCenter, out float radius)
+        {
+            playerSample = default;
+            if (!TryGetGameplayCircle(out lightCenter, out radius) || player == null
+                || !TryWorldToPlane(PlayerSampleWorldPosition, out playerSample)) return false;
+            playerPlanePosition = playerSample;
+            return true;
         }
 
         public UnityEngine.Camera GameplayCamera => gameplayCamera;
@@ -174,7 +198,7 @@ namespace ShadowPath.Lighting
             if (spotGeometryValid) effectiveGameplayHalfWidth = halfWidth;
             if (player != null)
             {
-                float height = Vector3.Dot(player.position - lightSource.position, projectionPlane.up);
+                float height = Vector3.Dot(PlayerSampleWorldPosition - lightSource.position, projectionPlane.up);
                 spotHorizontalRadiusAtPlayerHeight = CircleGameplayConstraint.HorizontalRadius(calculatedSpotRadius, height);
             }
             return spotGeometryValid;
@@ -230,59 +254,55 @@ namespace ShadowPath.Lighting
         public Vector2 ClampLightPlanePosition(Vector2 proposedLightPlanePosition)
         {
             // Initialization must happen before input, never as a side effect of clamping.
-            if (!lightConstraintInitialized || !initialPositionValid)
+            if (!lightConstraintInitialized)
             {
                 return TryGetGameplayCenterPlanePosition(out Vector2 currentLightPosition)
                     ? currentLightPosition
                     : proposedLightPlanePosition;
             }
 
-            if (!TryGetAllowedLightRange(out float minimum, out float maximum))
-            {
-                return proposedLightPlanePosition;
-            }
+            if (!TryGetGameplayCenterPlanePosition(out Vector2 current)) return proposedLightPlanePosition;
+            TryConstrainLightPlanePosition(current, proposedLightPlanePosition, out Vector2 final);
+            return final;
+        }
 
-            if (boundaryMode == BoundaryMode.FromSpotLight)
-            {
-                if (!TryGetGameplayCenterPlanePosition(out Vector2 current)) return proposedLightPlanePosition;
-                TryConstrainLightPlanePosition(current, proposedLightPlanePosition,
-                    Vector2.one * -float.MaxValue, Vector2.one * float.MaxValue, out Vector2 final);
-                return final;
-            }
-            proposedLightPlanePosition.x = Mathf.Clamp(
-                proposedLightPlanePosition.x, minimum, maximum);
-            return proposedLightPlanePosition;
+        // The same finite radial/tangent sweep used by the Player, with the Player as center.
+        public bool TryConstrainLightPlanePosition(Vector2 current, Vector2 proposed, out Vector2 final)
+        {
+            final = current;
+            if (!lightConstraintInitialized || !TryGetMutualCircle(out Vector2 sample, out _, out float radius))
+                return false;
+            Vector2 delta = proposed - current;
+            CircleGameplayConstraint.ConstrainMotion(current.x, current.y, delta.x, delta.y,
+                sample.x, sample.y, radius, out float x, out float y);
+            final = new Vector2(x, y);
+            return true;
         }
 
         public bool TryConstrainLightPlanePosition(Vector2 current, Vector2 proposed,
             Vector2 minimum, Vector2 maximum, out Vector2 final)
         {
             final = current;
-            if (!lightConstraintInitialized || !initialPositionValid
-                || !TryGetAllowedLightRange(out float allowedMin, out float allowedMax)) return false;
-            if (boundaryMode == BoundaryMode.Manual)
+            if (minimum.x > maximum.x || minimum.y > maximum.y
+                || !TryGetMutualCircle(out Vector2 sample, out _, out float radius)) return false;
+            Vector2 bounded = new Vector2(
+                CircleGameplayConstraint.ConstrainHorizontal(current.x, proposed.x, minimum.x, maximum.x),
+                CircleGameplayConstraint.ConstrainHorizontal(current.y, proposed.y, minimum.y, maximum.y));
+            // A Light already outside the optional rectangle recovers by input-sized steps too.
+            minimum = Vector2.Min(minimum, current);
+            maximum = Vector2.Max(maximum, current);
+            if (!TryConstrainLightPlanePosition(current, bounded, out Vector2 circleFinal)) return false;
+            if (circleFinal.x >= minimum.x && circleFinal.x <= maximum.x
+                && circleFinal.y >= minimum.y && circleFinal.y <= maximum.y)
             {
-                float low = Mathf.Max(minimum.x, allowedMin);
-                float high = Mathf.Min(maximum.x, allowedMax);
-                if (low > high || minimum.y > maximum.y) return false;
-                final = new Vector2(Mathf.Clamp(proposed.x, low, high), Mathf.Clamp(proposed.y, minimum.y, maximum.y));
+                final = circleFinal;
                 return true;
             }
-
-            float radius = SafeGameplayHalfWidth;
-            if (!CircleGameplayConstraint.TryClamp(proposed.x, proposed.y, playerPlanePosition.x, playerPlanePosition.y,
-                    radius, minimum.x, minimum.y, maximum.x, maximum.y, out float x, out float y)) return false;
-            if (!CircleGameplayConstraint.Contains(current.x, current.y, playerPlanePosition.x, playerPlanePosition.y, radius))
-            {
-                // Jumping or an external Player move may temporarily invalidate the current center.
-                // Accept only input-sized recovery steps, never project the Light several meters at once.
-                bool insideBox = proposed.x >= minimum.x && proposed.x <= maximum.x
-                    && proposed.y >= minimum.y && proposed.y <= maximum.y;
-                if (insideBox && (proposed - playerPlanePosition).sqrMagnitude
-                    <= (current - playerPlanePosition).sqrMagnitude)
-                    final = proposed;
-                return true;
-            }
+            // Optional level rectangle: keep the circle correction inside both constraints.
+            // Outside the circle, the current distance is a recovery ceiling, not a teleport target.
+            float recoveryRadius = Mathf.Max(radius, Vector2.Distance(current, sample));
+            if (!CircleGameplayConstraint.TryClamp(circleFinal.x, circleFinal.y, sample.x, sample.y,
+                recoveryRadius, minimum.x, minimum.y, maximum.x, maximum.y, out float x, out float y)) return false;
             final = new Vector2(x, y);
             return true;
         }
@@ -301,7 +321,7 @@ namespace ShadowPath.Lighting
             initialPositionValid = initialPositionValid
                 && initialLightPlaneX >= allowedLightMinX
                 && initialLightPlaneX <= allowedLightMaxX;
-            if (initialPositionValid && boundaryMode == BoundaryMode.FromSpotLight)
+            if (initialPositionValid)
             {
                 initialPositionValid = CircleGameplayConstraint.Contains(lightPlanePosition.x, lightPlanePosition.y,
                     playerPlanePosition.x, playerPlanePosition.y, SafeGameplayHalfWidth);
@@ -317,8 +337,8 @@ namespace ShadowPath.Lighting
                     $"Gameplay radius: {SafeGameplayHalfWidth:F5}; 2D distance: {Vector2.Distance(playerPlanePosition, lightPlanePosition):F5}\n" +
                     $"Allowed Light X: [{allowedLightMinX:F5}, {allowedLightMaxX:F5}]\n" +
                     "Check Projection Plane, Player and Light Source references. " +
-                    "Light was NOT moved. Light input movement is blocked for this Play session. " +
-                    "Exit Play Mode, place the initial Light inside the allowed range in Scene View, then Play again.",
+                    "Light was NOT moved. With valid circle geometry, distance-reducing recovery input remains allowed. " +
+                    "Place the initial Light inside the circle in Scene View for a valid starting layout.",
                     this);
             }
 
@@ -329,20 +349,14 @@ namespace ShadowPath.Lighting
         {
             minimum = maximum = 0f;
             if (boundaryMode == BoundaryMode.FromSpotLight && !RefreshSpotBoundary()) return false;
-            if (player == null || !TryWorldToPlane(player.position, out playerPlanePosition))
+            if (player == null || !TryWorldToPlane(PlayerSampleWorldPosition, out playerPlanePosition))
             {
                 return false;
             }
 
-            float usableHalfWidth = Mathf.Max(
-                0f,
-                SafeGameplayHalfWidth - Mathf.Max(0f, playerSafetyMargin));
-            if (boundaryMode == BoundaryMode.FromSpotLight)
-            {
-                if (!TryGetGameplayCenterPlanePosition(out Vector2 center)) return false;
-                usableHalfWidth = CircleGameplayConstraint.HorizontalRadius(SafeGameplayHalfWidth,
-                    center.y - playerPlanePosition.y);
-            }
+            if (!TryGetGameplayCenterPlanePosition(out Vector2 center)) return false;
+            float usableHalfWidth = CircleGameplayConstraint.HorizontalRadius(SafeGameplayHalfWidth,
+                center.y - playerPlanePosition.y);
             playerPlaneX = playerPlanePosition.x;
             minimum = allowedLightMinX = playerPlaneX - usableHalfWidth;
             maximum = allowedLightMaxX = playerPlaneX + usableHalfWidth;
@@ -353,37 +367,19 @@ namespace ShadowPath.Lighting
             Vector3 currentWorldPosition,
             Vector3 proposedWorldPosition)
         {
-            if (!TryGetGameplayCenterPlanePosition(out Vector2 centerPosition)
+            if (!TryGetGameplayCircle(out Vector2 centerPosition, out float radius)
                 || !TryWorldToPlane(currentWorldPosition, out Vector2 currentPosition)
                 || !TryWorldToPlane(proposedWorldPosition, out Vector2 proposedPosition))
             {
                 return proposedWorldPosition;
             }
 
-            if (boundaryMode == BoundaryMode.FromSpotLight)
-            {
-                Vector2 delta = proposedPosition - currentPosition;
-                CircleGameplayConstraint.ConstrainMotion(currentPosition.x, currentPosition.y, delta.x, delta.y,
-                    centerPosition.x, centerPosition.y, SafeGameplayHalfWidth, out float x, out float y);
-                Vector2 correction = new Vector2(x, y) - proposedPosition;
-                return TryPlaneDeltaToWorldXY(correction, out Vector3 worldCorrection)
-                    ? proposedWorldPosition + worldCorrection : proposedWorldPosition;
-            }
-
-            float halfWidth = SafeGameplayHalfWidth;
-            float leftBoundary = centerPosition.x - halfWidth;
-            float rightBoundary = centerPosition.x + halfWidth;
-            float constrainedX = ConstrainAxisPosition(currentPosition.x, proposedPosition.x, leftBoundary, rightBoundary);
-            float planeCorrection = constrainedX - proposedPosition.x;
-            Vector3 planeRight = projectionPlane.right.normalized;
-            if (Mathf.Abs(planeRight.x) <= MinimumAxisComponent)
-            {
-                return proposedWorldPosition;
-            }
-
-            Vector3 constrainedWorldPosition = proposedWorldPosition;
-            constrainedWorldPosition.x += planeCorrection / planeRight.x;
-            return constrainedWorldPosition;
+            Vector2 delta = proposedPosition - currentPosition;
+            CircleGameplayConstraint.ConstrainMotion(currentPosition.x, currentPosition.y, delta.x, delta.y,
+                centerPosition.x, centerPosition.y, radius, out float x, out float y);
+            Vector2 correction = new Vector2(x, y) - proposedPosition;
+            return TryPlaneDeltaToWorldXY(correction, out Vector3 worldCorrection)
+                ? proposedWorldPosition + worldCorrection : proposedWorldPosition;
         }
 
         // PlayerController supplies the complete frame motion once: input/jump velocity,
@@ -396,28 +392,21 @@ namespace ShadowPath.Lighting
             boundaryContact = false;
             blockedOutwardPlaneVelocity = blockedOutwardPlaneDisplacement = Vector2.zero;
             if (deltaTime <= 0f) return;
-            if (boundaryMode == BoundaryMode.Manual)
-            {
-                Vector3 target = ConstrainPlayerWorldPosition(currentWorldPosition, currentWorldPosition + externalDisplacement);
-                finalExternalDisplacement = target - currentWorldPosition;
-                finalVelocity = ConstrainPlayerVelocity(target, proposedVelocity, deltaTime);
-                return;
-            }
             Vector3 proposedWorldPosition = currentWorldPosition + externalDisplacement + proposedVelocity * deltaTime;
-            if (!TryGetGameplayCenterPlanePosition(out Vector2 center)
+            if (!TryGetGameplayCircle(out Vector2 center, out float radius)
                 || !TryWorldToPlane(currentWorldPosition, out Vector2 current)
                 || !TryWorldToPlane(proposedWorldPosition, out Vector2 proposed)) return;
 
             Vector2 movement = proposed - current;
             boundaryContact = CircleGameplayConstraint.ConstrainMotion(current.x, current.y, movement.x, movement.y,
-                center.x, center.y, SafeGameplayHalfWidth, out float x, out float y);
+                center.x, center.y, radius, out float x, out float y);
             if (!boundaryContact) return;
             Vector2 final = new Vector2(x, y);
             Vector2 planeVelocity = new Vector2(Vector3.Dot(proposedVelocity, projectionPlane.right),
                 Vector3.Dot(proposedVelocity, projectionPlane.up));
             CircleGameplayConstraint.RemoveOutward(final.x - center.x, final.y - center.y,
                 planeVelocity.x, planeVelocity.y, out float vx, out float vy);
-            if (SafeGameplayHalfWidth <= 0f && (final - center).sqrMagnitude <= 0.000001f) vx = vy = 0f;
+            if (radius <= 0f && (final - center).sqrMagnitude <= 0.000001f) vx = vy = 0f;
             blockedOutwardPlaneVelocity = planeVelocity - new Vector2(vx, vy);
             blockedOutwardPlaneDisplacement = proposed - final;
             if (!TryPlaneDeltaToWorldXY(-blockedOutwardPlaneVelocity, out Vector3 velocityCorrection)
@@ -450,22 +439,9 @@ namespace ShadowPath.Lighting
             {
                 return proposedVelocity;
             }
-            if (boundaryMode == BoundaryMode.FromSpotLight)
-            {
-                ConstrainPlayerMovement(currentWorldPosition, Vector3.zero, proposedVelocity, deltaTime,
-                    out _, out Vector3 velocity);
-                return velocity;
-            }
-
-            Vector3 predictedPosition = currentWorldPosition + proposedVelocity * deltaTime;
-            Vector3 constrainedPosition = ConstrainPlayerWorldPosition(
-                currentWorldPosition,
-                predictedPosition);
-            Vector3 constrainedVelocity = proposedVelocity
-                + (constrainedPosition - predictedPosition) / deltaTime;
-            constrainedVelocity.y = proposedVelocity.y;
-            constrainedVelocity.z = proposedVelocity.z;
-            return constrainedVelocity;
+            ConstrainPlayerMovement(currentWorldPosition, Vector3.zero, proposedVelocity, deltaTime,
+                out _, out Vector3 velocity);
+            return velocity;
         }
 
         public bool TryGetGameplayCenterWorldPosition(out Vector3 centerWorldPosition)
@@ -510,59 +486,21 @@ namespace ShadowPath.Lighting
             }
 
             bool hasPlayer = player != null
-                && TryWorldToPlane(player.position, out playerPlanePosition);
+                && TryWorldToPlane(PlayerSampleWorldPosition, out playerPlanePosition);
             float radius = SafeGameplayHalfWidth;
             effectiveGameplayRadius = radius;
             Vector2 delta = playerPlanePosition - gameplayCenterPlanePosition;
             playerDeltaX = delta.x;
             playerDeltaY = delta.y;
             playerDistanceFromLightCenter = delta.magnitude;
-            gameplayHorizontalRadiusAtPlayerHeight = boundaryMode == BoundaryMode.FromSpotLight
-                ? CircleGameplayConstraint.HorizontalRadius(radius, delta.y) : radius;
+            gameplayHorizontalRadiusAtPlayerHeight = CircleGameplayConstraint.HorizontalRadius(radius, delta.y);
             leftGameplayBoundary = gameplayCenterPlanePosition.x - gameplayHorizontalRadiusAtPlayerHeight;
             rightGameplayBoundary = gameplayCenterPlanePosition.x + gameplayHorizontalRadiusAtPlayerHeight;
-            playerOutsideVerticalLightRange = boundaryMode == BoundaryMode.FromSpotLight && Mathf.Abs(delta.y) >= radius;
+            playerOutsideVerticalLightRange = Mathf.Abs(delta.y) >= radius;
             playerInsideGameplayCircle = hasLight && hasPlayer
                 && CircleGameplayConstraint.Contains(playerPlanePosition.x, playerPlanePosition.y,
                     gameplayCenterPlanePosition.x, gameplayCenterPlanePosition.y, radius);
-            playerInsideArea = hasLight
-                && hasPlayer
-                && playerPlanePosition.x >= leftGameplayBoundary
-                && playerPlanePosition.x <= rightGameplayBoundary
-                && (boundaryMode == BoundaryMode.Manual || playerInsideGameplayCircle);
-        }
-
-        private static float ConstrainAxisPosition(
-            float currentPosition,
-            float proposedPosition,
-            float minimum,
-            float maximum)
-        {
-            if (currentPosition >= minimum && currentPosition <= maximum)
-            {
-                return Mathf.Clamp(proposedPosition, minimum, maximum);
-            }
-
-            if (currentPosition > maximum)
-            {
-                if (currentPosition - maximum <= SmallBoundaryCorrection)
-                {
-                    return Mathf.Clamp(proposedPosition, minimum, maximum);
-                }
-
-                return proposedPosition >= currentPosition
-                    ? currentPosition
-                    : Mathf.Max(proposedPosition, minimum);
-            }
-
-            if (minimum - currentPosition <= SmallBoundaryCorrection)
-            {
-                return Mathf.Clamp(proposedPosition, minimum, maximum);
-            }
-
-            return proposedPosition <= currentPosition
-                ? currentPosition
-                : Mathf.Min(proposedPosition, maximum);
+            playerInsideArea = playerInsideGameplayCircle;
         }
 
         private void OnDrawGizmosSelected()
@@ -621,16 +559,8 @@ namespace ShadowPath.Lighting
                     new Vector2(maximum, centerPlanePosition.y + 0.3f));
             }
 
-            float halfHeight = safeVisualRadius.y;
-            float leftBoundary = centerPlanePosition.x - SafeGameplayHalfWidth;
-            float rightBoundary = centerPlanePosition.x + SafeGameplayHalfWidth;
             Gizmos.color = Color.yellow;
-            DrawPlaneLine(
-                new Vector2(leftBoundary, centerPlanePosition.y - halfHeight),
-                new Vector2(leftBoundary, centerPlanePosition.y + halfHeight));
-            DrawPlaneLine(
-                new Vector2(rightBoundary, centerPlanePosition.y - halfHeight),
-                new Vector2(rightBoundary, centerPlanePosition.y + halfHeight));
+            DrawPlaneCircle(centerPlanePosition, SafeGameplayHalfWidth);
 
             Gizmos.color = new Color(1f, 0.55f, 0f, 0.9f);
             Vector2 previousPoint = centerPlanePosition
