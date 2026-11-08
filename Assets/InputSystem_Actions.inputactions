@@ -42,6 +42,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "ResetToCheckpoint",
+                    "type": "Button",
+                    "id": "3d9b3cbc-6c91-4f11-9fd7-6ce85a738aac",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "LightMove",
                     "type": "Value",
                     "id": "1edbd3df-3096-450d-883a-fc63402b0a25",
@@ -181,6 +190,28 @@
                     "processors": "",
                     "groups": "Gamepad",
                     "action": "Cancel",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "2d32ec0d-8a15-4e54-a981-889c6d8c62bd",
+                    "path": "<Keyboard>/r",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "ResetToCheckpoint",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "7a76023c-a72e-4090-a17a-8017dcd72052",
+                    "path": "<Gamepad>/select",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "ResetToCheckpoint",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

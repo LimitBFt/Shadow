@@ -268,8 +268,8 @@ GameObject:
   - component: {fileID: 98263790}
   - component: {fileID: 98263789}
   - component: {fileID: 98263788}
-  - component: {fileID: 98263787}
   - component: {fileID: 98263786}
+  - component: {fileID: 98263787}
   - component: {fileID: 98263785}
   - component: {fileID: 98263784}
   - component: {fileID: 98263783}
@@ -825,8 +825,8 @@ GameObject:
   - component: {fileID: 249583351}
   - component: {fileID: 249583350}
   - component: {fileID: 249583349}
-  - component: {fileID: 249583348}
   - component: {fileID: 249583345}
+  - component: {fileID: 249583348}
   - component: {fileID: 249583347}
   - component: {fileID: 249583346}
   - component: {fileID: 249583353}
@@ -1021,7 +1021,7 @@ GameObject:
   - component: {fileID: 251816778}
   - component: {fileID: 251816777}
   m_Layer: 3
-  m_Name: Cube (20)
+  m_Name: Cube (r3)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1530,11 +1530,12 @@ Transform:
   m_GameObject: {fileID: 337852967}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 15.53, y: 1.25, z: 0}
+  m_LocalPosition: {x: 15.53, y: 1.41, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2058970502}
+  - {fileID: 1224511980}
   m_Father: {fileID: 1411739941}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &337852969
@@ -1552,12 +1553,14 @@ MonoBehaviour:
   tutorialTitle: LIGHT CONTROL
   tutorialText: "RIGHT STICK \u2014 MOVE LIGHT"
   tutorialUI: {fileID: 2127618113}
+  signVisual: {fileID: 0}
   lightSourceController: {fileID: 1329226619}
   unlockManualLightControl: 1
   disableLightAutoFollow: 1
-  gameplayActionOneShot: 1
+  activateCheckpointOnRead: 1
+  checkpointSpawnMode: 0
+  respawnPoint: {fileID: 0}
   playerInRange: 0
-  gameplayActionExecuted: 0
 --- !u!65 &337852970
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1817,11 +1820,12 @@ Transform:
   m_GameObject: {fileID: 407153453}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 22.15, y: 0.98, z: 0}
+  m_LocalPosition: {x: 22.15, y: 1.24, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2001240034}
+  - {fileID: 2145939189}
   m_Father: {fileID: 1411739941}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &407153455
@@ -1839,12 +1843,14 @@ MonoBehaviour:
   tutorialTitle: OBJECT ROTATION
   tutorialText: "X \u2014 SELECT\nLEFT STICK \u2014 ROTATE\nB \u2014 EXIT"
   tutorialUI: {fileID: 2127618113}
+  signVisual: {fileID: 0}
   lightSourceController: {fileID: 0}
   unlockManualLightControl: 0
   disableLightAutoFollow: 0
-  gameplayActionOneShot: 1
+  activateCheckpointOnRead: 1
+  checkpointSpawnMode: 0
+  respawnPoint: {fileID: 0}
   playerInRange: 0
-  gameplayActionExecuted: 0
 --- !u!65 &407153456
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2006,7 +2012,6 @@ GameObject:
   - component: {fileID: 424727170}
   - component: {fileID: 424727169}
   - component: {fileID: 424727168}
-  - component: {fileID: 424727167}
   - component: {fileID: 424727166}
   - component: {fileID: 424727165}
   - component: {fileID: 424727164}
@@ -2076,22 +2081,6 @@ MonoBehaviour:
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []
---- !u!114 &424727167
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 424727162}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e82662324f959c42831ce9df9860d25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.RotatableObject
-  rotationAxis: 2
-  stepAngle: 45
-  rotationDuration: 0.25
-  enableDebugInput: 0
 --- !u!114 &424727168
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2515,7 +2504,6 @@ GameObject:
   - component: {fileID: 522843764}
   - component: {fileID: 522843763}
   - component: {fileID: 522843762}
-  - component: {fileID: 522843769}
   - component: {fileID: 522843768}
   - component: {fileID: 522843767}
   - component: {fileID: 522843770}
@@ -2662,22 +2650,6 @@ MonoBehaviour:
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []
---- !u!114 &522843769
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 522843761}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e82662324f959c42831ce9df9860d25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.RotatableObject
-  rotationAxis: 2
-  stepAngle: 45
-  rotationDuration: 0.25
-  enableDebugInput: 0
 --- !u!114 &522843770
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2926,7 +2898,6 @@ GameObject:
   - component: {fileID: 550861097}
   - component: {fileID: 550861096}
   - component: {fileID: 550861095}
-  - component: {fileID: 550861094}
   - component: {fileID: 550861093}
   - component: {fileID: 550861092}
   - component: {fileID: 550861091}
@@ -2982,22 +2953,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.ObjectHighlight
   outline: {fileID: 550861092}
---- !u!114 &550861094
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 550861090}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e82662324f959c42831ce9df9860d25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.RotatableObject
-  rotationAxis: 1
-  stepAngle: 45
-  rotationDuration: 0.25
-  enableDebugInput: 0
 --- !u!114 &550861095
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3316,6 +3271,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1853044067}
+  - {fileID: 1500718937}
   m_Father: {fileID: 1411739941}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &586390350
@@ -3333,12 +3289,14 @@ MonoBehaviour:
   tutorialTitle: MOVEMENT
   tutorialText: "LEFT STICK \u2014 MOVE\nA \u2014 JUMP"
   tutorialUI: {fileID: 2127618113}
+  signVisual: {fileID: 0}
   lightSourceController: {fileID: 0}
   unlockManualLightControl: 0
   disableLightAutoFollow: 0
-  gameplayActionOneShot: 1
+  activateCheckpointOnRead: 1
+  checkpointSpawnMode: 0
+  respawnPoint: {fileID: 0}
   playerInRange: 0
-  gameplayActionExecuted: 0
 --- !u!65 &586390351
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3372,8 +3330,8 @@ GameObject:
   - component: {fileID: 594239768}
   - component: {fileID: 594239767}
   - component: {fileID: 594239766}
-  - component: {fileID: 594239765}
   - component: {fileID: 594239764}
+  - component: {fileID: 594239765}
   - component: {fileID: 594239763}
   - component: {fileID: 594239762}
   - component: {fileID: 594239761}
@@ -4129,8 +4087,8 @@ GameObject:
   - component: {fileID: 809501561}
   - component: {fileID: 809501560}
   - component: {fileID: 809501559}
-  - component: {fileID: 809501558}
   - component: {fileID: 809501557}
+  - component: {fileID: 809501558}
   - component: {fileID: 809501556}
   - component: {fileID: 809501555}
   - component: {fileID: 809501554}
@@ -4549,8 +4507,8 @@ GameObject:
   - component: {fileID: 909754610}
   - component: {fileID: 909754609}
   - component: {fileID: 909754608}
-  - component: {fileID: 909754607}
   - component: {fileID: 909754606}
+  - component: {fileID: 909754607}
   - component: {fileID: 909754605}
   - component: {fileID: 909754604}
   - component: {fileID: 909754603}
@@ -5084,7 +5042,6 @@ GameObject:
   - component: {fileID: 1047914723}
   - component: {fileID: 1047914722}
   - component: {fileID: 1047914721}
-  - component: {fileID: 1047914720}
   - component: {fileID: 1047914719}
   - component: {fileID: 1047914718}
   - component: {fileID: 1047914717}
@@ -5140,22 +5097,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.ObjectHighlight
   outline: {fileID: 1047914718}
---- !u!114 &1047914720
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1047914716}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e82662324f959c42831ce9df9860d25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.RotatableObject
-  rotationAxis: 1
-  stepAngle: 45
-  rotationDuration: 0.25
-  enableDebugInput: 0
 --- !u!114 &1047914721
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5279,7 +5220,7 @@ GameObject:
   - component: {fileID: 1065744603}
   - component: {fileID: 1065744602}
   m_Layer: 3
-  m_Name: Cube (15)
+  m_Name: Cube (r2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5996,6 +5937,37 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 0}
+--- !u!1 &1224511979
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1224511980}
+  m_Layer: 0
+  m_Name: RespawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1224511980
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1224511979}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 337852968}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1292223180
 GameObject:
   m_ObjectHideFlags: 0
@@ -6014,7 +5986,7 @@ GameObject:
   - component: {fileID: 1292223183}
   - component: {fileID: 1292223182}
   m_Layer: 3
-  m_Name: Cube (14)
+  m_Name: Cube (r1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6780,6 +6752,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1460704400}
   m_CullTransparentMesh: 1
+--- !u!1 &1500718936
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1500718937}
+  m_Layer: 0
+  m_Name: RespawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1500718937
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1500718936}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 586390349}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1559594283
 GameObject:
   m_ObjectHideFlags: 0
@@ -7144,6 +7147,7 @@ GameObject:
   - component: {fileID: 1689364683}
   - component: {fileID: 1689364684}
   - component: {fileID: 1689364685}
+  - component: {fileID: 1689364686}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -7209,7 +7213,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1689364678}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: ac12925d156547f4687c1e54c9967bc2, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -7306,6 +7310,38 @@ MonoBehaviour:
   stableGeometryFixedSteps: 0
   previousSurfaceWorldPoint: {x: 0, y: 0, z: 0}
   lastCarryDelta: {x: 0, y: 0, z: 0}
+--- !u!114 &1689364686
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1689364678}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bca3a82370743188f9e67c0132433ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Player.PlayerRespawnController
+  lightGameplayArea: {fileID: 1845754002}
+  checkpointObjects:
+  - {fileID: 1292223185}
+  - {fileID: 1065744605}
+  - {fileID: 251816780}
+  - {fileID: 1833208639}
+  shadowSystems:
+  - {fileID: 1148816678}
+  fixedSafeRespawnPoint: {fileID: 0}
+  respawnCollisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  supportProbeDistance: 0.15
+  maxGroundSnapDistance: 0.4
+  spawnSurfaceClearance: 0.01
+  maxWalkableSlopeAngle: 60
+  useLevelLowerBound: 0
+  projectionPlane: {fileID: 1803803047}
+  minimumPlaneHeight: -10
+  runtimeDebug: 1
 --- !u!1 &1759568660
 GameObject:
   m_ObjectHideFlags: 0
@@ -7319,7 +7355,6 @@ GameObject:
   - component: {fileID: 1759568668}
   - component: {fileID: 1759568667}
   - component: {fileID: 1759568666}
-  - component: {fileID: 1759568665}
   - component: {fileID: 1759568664}
   - component: {fileID: 1759568663}
   - component: {fileID: 1759568662}
@@ -7390,22 +7425,6 @@ MonoBehaviour:
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []
---- !u!114 &1759568665
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1759568660}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e82662324f959c42831ce9df9860d25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.RotatableObject
-  rotationAxis: 2
-  stepAngle: 45
-  rotationDuration: 0.25
-  enableDebugInput: 0
 --- !u!114 &1759568666
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7801,7 +7820,7 @@ GameObject:
   - component: {fileID: 1833208641}
   - component: {fileID: 1833208640}
   m_Layer: 3
-  m_Name: Cube (21)
+  m_Name: Cube (r4)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8075,8 +8094,8 @@ GameObject:
   - component: {fileID: 1849205806}
   - component: {fileID: 1849205805}
   - component: {fileID: 1849205804}
-  - component: {fileID: 1849205803}
   - component: {fileID: 1849205800}
+  - component: {fileID: 1849205803}
   - component: {fileID: 1849205802}
   - component: {fileID: 1849205801}
   - component: {fileID: 1849205808}
@@ -8378,7 +8397,6 @@ GameObject:
   - component: {fileID: 1881861543}
   - component: {fileID: 1881861542}
   - component: {fileID: 1881861541}
-  - component: {fileID: 1881861538}
   - component: {fileID: 1881861540}
   - component: {fileID: 1881861539}
   - component: {fileID: 1881861546}
@@ -8389,22 +8407,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1881861538
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1881861537}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e82662324f959c42831ce9df9860d25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.RotatableObject
-  rotationAxis: 2
-  stepAngle: 45
-  rotationDuration: 0.25
-  enableDebugInput: 0
 --- !u!114 &1881861539
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8567,8 +8569,8 @@ GameObject:
   - component: {fileID: 1956511737}
   - component: {fileID: 1956511736}
   - component: {fileID: 1956511735}
-  - component: {fileID: 1956511734}
   - component: {fileID: 1956511733}
+  - component: {fileID: 1956511734}
   - component: {fileID: 1956511732}
   - component: {fileID: 1956511731}
   - component: {fileID: 1956511730}
@@ -8758,7 +8760,6 @@ GameObject:
   - component: {fileID: 1997722057}
   - component: {fileID: 1997722056}
   - component: {fileID: 1997722055}
-  - component: {fileID: 1997722054}
   - component: {fileID: 1997722053}
   - component: {fileID: 1997722052}
   - component: {fileID: 1997722051}
@@ -8829,22 +8830,6 @@ MonoBehaviour:
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []
---- !u!114 &1997722054
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1997722049}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e82662324f959c42831ce9df9860d25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.RotatableObject
-  rotationAxis: 2
-  stepAngle: 45
-  rotationDuration: 0.25
-  enableDebugInput: 0
 --- !u!114 &1997722055
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8963,7 +8948,7 @@ Transform:
   m_GameObject: {fileID: 2001240033}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0.16, z: 0}
   m_LocalScale: {x: 0.2839104, y: 0.7226132, z: 0.53449}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -9059,8 +9044,8 @@ GameObject:
   - component: {fileID: 2024650702}
   - component: {fileID: 2024650701}
   - component: {fileID: 2024650700}
-  - component: {fileID: 2024650699}
   - component: {fileID: 2024650698}
+  - component: {fileID: 2024650699}
   - component: {fileID: 2024650697}
   - component: {fileID: 2024650696}
   - component: {fileID: 2024650695}
@@ -9535,7 +9520,6 @@ GameObject:
   - component: {fileID: 2065640681}
   - component: {fileID: 2065640680}
   - component: {fileID: 2065640684}
-  - component: {fileID: 2065640685}
   - component: {fileID: 2065640686}
   - component: {fileID: 2065640687}
   - component: {fileID: 2065640688}
@@ -9651,22 +9635,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e008e6fdfebd46d8936e7d46d6541f04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Shadow.ShadowCaster
---- !u!114 &2065640685
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2065640679}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e82662324f959c42831ce9df9860d25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShadowPath.Interaction.RotatableObject
-  rotationAxis: 1
-  stepAngle: 45
-  rotationDuration: 0.25
-  enableDebugInput: 0
 --- !u!114 &2065640686
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9768,6 +9736,39 @@ MonoBehaviour:
   tutorialPanel: {fileID: 1770478359}
   titleLabel: {fileID: 514368903}
   bodyLabel: {fileID: 332875740}
+  closePromptLabel: {fileID: 0}
+  closePromptText: "B \u2014 CLOSE"
+--- !u!1 &2145939188
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2145939189}
+  m_Layer: 0
+  m_Name: RespawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2145939189
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2145939188}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.31, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 407153454}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using ShadowPath.Input;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace ShadowPath.Tutorial
 {
@@ -12,16 +11,17 @@ namespace ShadowPath.Tutorial
         [Header("Interaction Prompt")]
         [SerializeField] private GameObject interactionPrompt;
         [SerializeField] private TMP_Text interactionPromptLabel;
-        [SerializeField] private string interactionPromptText = "[X] READ";
+        [SerializeField] private string interactionPromptText = "[X] / [E] READ";
 
         [Header("Tutorial Panel")]
         [SerializeField] private GameObject tutorialPanel;
         [SerializeField] private TMP_Text titleLabel;
         [SerializeField] private TMP_Text bodyLabel;
         [SerializeField] private TMP_Text closePromptLabel;
-        [SerializeField] private string closePromptText = "B — CLOSE";
+        [SerializeField] private string closePromptText = "B / ESC — CLOSE";
 
         private readonly List<TutorialSign> nearbySigns = new List<TutorialSign>(4);
+        private int tutorialOpenedFrame = -1;
         internal TutorialSign FocusedSign { get; private set; }
         internal bool HasTutorialPanel => IsSafeWidget(tutorialPanel) && titleLabel != null && bodyLabel != null;
 
@@ -66,16 +66,14 @@ namespace ShadowPath.Tutorial
             RefreshFocus();
             if (FocusedSign != null && FocusedSign.IsReading)
             {
-                foreach (Gamepad gamepad in Gamepad.all)
-                {
-                    if (!gamepad.buttonEast.wasPressedThisFrame) continue;
+                // Actions keep receiving dynamic input updates while scaled time is paused.
+                if (tutorialOpenedFrame != Time.frameCount && GameplayInput.Cancel?.WasPressedThisFrame() == true)
                     FocusedSign.CompleteReading();
-                    break;
-                }
                 return;
             }
 
-            if (FocusedSign != previousFocus || FocusedSign == null || GameplayInput.Interact == null
+            if (GameplayInput.GameplayCommandsBlocked
+                || FocusedSign != previousFocus || FocusedSign == null || GameplayInput.Interact == null
                 || !GameplayInput.Interact.WasPressedThisFrame()) return;
             FocusedSign.Read();
         }
@@ -105,11 +103,14 @@ namespace ShadowPath.Tutorial
             if (closePromptLabel == null) CreateClosePrompt();
             closePromptLabel.text = closePromptText;
             closePromptLabel.gameObject.SetActive(true);
+            tutorialOpenedFrame = Time.frameCount;
+            GameplayInput.AcquireModalInput(this);
             tutorialPanel.SetActive(true);
         }
 
         public void HideTutorial()
         {
+            GameplayInput.ReleaseModalInput(this);
             if (IsSafeWidget(tutorialPanel)) tutorialPanel.SetActive(false);
         }
 

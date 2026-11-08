@@ -21,12 +21,50 @@ namespace ShadowPath.Interaction
         private Quaternion initialLocalRotation;
         private int rotationStepIndex;
         private Coroutine rotationCoroutine;
+        private bool rotationBasisInitialized;
 
         public bool IsRotating { get; private set; }
 
-        private void Awake()
+        internal struct CheckpointState
         {
+            public Vector3 LocalPosition;
+            public Quaternion LocalRotation;
+            public Vector3 LocalScale;
+            public Quaternion InitialLocalRotation;
+            public int RotationStepIndex;
+        }
+
+        internal CheckpointState CaptureCheckpointState()
+        {
+            EnsureRotationBasis();
+            return new CheckpointState
+            {
+                LocalPosition = transform.localPosition,
+                LocalRotation = transform.localRotation,
+                LocalScale = transform.localScale,
+                // A snapshot taken during interpolation becomes a new settled rotation step.
+                InitialLocalRotation = IsRotating ? transform.localRotation : initialLocalRotation,
+                RotationStepIndex = IsRotating ? 0 : rotationStepIndex
+            };
+        }
+
+        internal void RestoreCheckpointState(CheckpointState state)
+        {
+            StopRotation();
+            transform.SetLocalPositionAndRotation(state.LocalPosition, state.LocalRotation);
+            transform.localScale = state.LocalScale;
+            initialLocalRotation = state.InitialLocalRotation;
+            rotationStepIndex = state.RotationStepIndex;
+            rotationBasisInitialized = true;
+        }
+
+        private void Awake() => EnsureRotationBasis();
+
+        private void EnsureRotationBasis()
+        {
+            if (rotationBasisInitialized) return;
             initialLocalRotation = transform.localRotation;
+            rotationBasisInitialized = true;
         }
 
         private void Update()
@@ -46,6 +84,7 @@ namespace ShadowPath.Interaction
 
         private void TryRotate(int stepDirection)
         {
+            EnsureRotationBasis();
             if (IsRotating)
             {
                 return;
@@ -119,7 +158,9 @@ namespace ShadowPath.Interaction
             }
         }
 
-        private void OnDisable()
+        private void OnDisable() => StopRotation();
+
+        private void StopRotation()
         {
             if (rotationCoroutine != null)
             {

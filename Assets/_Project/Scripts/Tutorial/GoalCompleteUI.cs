@@ -1,3 +1,4 @@
+using ShadowPath.Input;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -50,6 +51,7 @@ namespace ShadowPath.Tutorial
                 return false;
             }
             if (completionRequested) return true;
+            GameplayInput.AcquireModalInput(this);
             EnsureCanvasGroup();
             completionRequested = true;
             readyForRestart = restartInProgress = restartArmed = false;
@@ -58,6 +60,13 @@ namespace ShadowPath.Tutorial
             transform.SetAsLastSibling();
             return true;
         }
+
+        private void OnEnable()
+        {
+            if (completionRequested) GameplayInput.AcquireModalInput(this);
+        }
+
+        private void OnDisable() => GameplayInput.ReleaseModalInput(this);
 
         private void Update()
         {

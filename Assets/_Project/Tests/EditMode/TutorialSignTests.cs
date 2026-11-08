@@ -6,6 +6,8 @@ using ShadowPath.Player;
 using ShadowPath.Tutorial;
 using TMPro;
 using UnityEngine;
+using UnityEngine.TestTools;
+using System.Text.RegularExpressions;
 
 namespace ShadowPath.Tests.EditMode
 {
@@ -178,7 +180,7 @@ namespace ShadowPath.Tests.EditMode
         }
 
         [Test]
-        public void CheckpointOnlyChangesOnCompletionAndRespawnKeepsTheSignConsumed()
+        public void MissingSnapshotConfigurationKeepsPreviousCheckpointAndConsumesTheReadSign()
         {
             Rigidbody playerBody = playerCollider.GetComponent<Rigidbody>();
             Vector3 start = new Vector3(1f, 2f, 3f);
@@ -190,22 +192,14 @@ namespace ShadowPath.Tests.EditMode
             Transform point = Child("Respawn Point").transform;
             point.SetPositionAndRotation(new Vector3(4f, 5f, 9f), Quaternion.Euler(0f, 90f, 0f));
             Set(sign, "activateCheckpointOnRead", true);
+            Set(sign, "checkpointSpawnMode", TutorialSign.CheckpointSpawnMode.ManualRespawnPoint);
             Set(sign, "respawnPoint", point);
             Enter(sign, playerCollider);
             sign.Read();
-            playerBody.position = Vector3.zero;
-            respawn.Respawn();
-            Assert.That(playerBody.position, Is.EqualTo(start));
-
+            Assert.That(Get(respawn, "checkpointPosition"), Is.EqualTo(start));
+            LogAssert.Expect(LogType.Warning, new Regex("Manual checkpoint was not saved"));
             sign.CompleteReading();
-            playerBody.linearVelocity = Vector3.one;
-            playerBody.angularVelocity = Vector3.up;
-            respawn.Respawn();
-            Assert.That(playerBody.position, Is.EqualTo(new Vector3(4f, 5f, 3f)));
-            Assert.That(Quaternion.Angle(playerBody.rotation, point.rotation), Is.LessThan(0.01f));
-            Assert.That(playerBody.linearVelocity, Is.EqualTo(Vector3.zero));
-            Assert.That(playerBody.angularVelocity, Is.EqualTo(Vector3.zero));
-            Assert.That(playerBody.constraints, Is.EqualTo(RigidbodyConstraints.FreezePositionZ));
+            Assert.That(Get(respawn, "checkpointPosition"), Is.EqualTo(start));
             Assert.That(sign.HasBeenRead, Is.True);
         }
 

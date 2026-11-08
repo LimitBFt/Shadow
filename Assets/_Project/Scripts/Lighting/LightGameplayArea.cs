@@ -123,6 +123,55 @@ namespace ShadowPath.Lighting
         internal LightSourceController LightController =>
             lightSource != null ? lightSource.GetComponent<LightSourceController>() : null;
         internal Transform ProjectionPlane => projectionPlane;
+        internal Light ProjectionLight => spotLight;
+
+        internal struct CheckpointState
+        {
+            public LightSizeMode SizeMode;
+            public BoundaryMode Boundary;
+            public float TargetRadius;
+            public float InnerAngleRatio;
+            public float Inset;
+            public float HalfWidth;
+            public Vector3 SpotPosition;
+            public Quaternion SpotRotation;
+            public LightType SpotType;
+            public float Range;
+            public float SpotAngle;
+            public float InnerSpotAngle;
+        }
+
+        internal CheckpointState CaptureCheckpointState() => new CheckpointState
+        {
+            SizeMode = lightSizeMode,
+            Boundary = boundaryMode,
+            TargetRadius = targetLightRadius,
+            InnerAngleRatio = innerAngleRatio,
+            Inset = gameplayBoundaryInset,
+            HalfWidth = gameplayHalfWidth,
+            SpotPosition = spotLight != null ? spotLight.transform.position : Vector3.zero,
+            SpotRotation = spotLight != null ? spotLight.transform.rotation : Quaternion.identity,
+            SpotType = spotLight != null ? spotLight.type : LightType.Spot,
+            Range = spotLight != null ? spotLight.range : 0f,
+            SpotAngle = spotLight != null ? spotLight.spotAngle : 0f,
+            InnerSpotAngle = spotLight != null ? spotLight.innerSpotAngle : 0f
+        };
+
+        internal void RestoreCheckpointState(CheckpointState state)
+        {
+            lightSizeMode = state.SizeMode;
+            boundaryMode = state.Boundary;
+            targetLightRadius = state.TargetRadius;
+            innerAngleRatio = state.InnerAngleRatio;
+            gameplayBoundaryInset = state.Inset;
+            gameplayHalfWidth = state.HalfWidth;
+            if (spotLight == null) return;
+            spotLight.transform.SetPositionAndRotation(state.SpotPosition, state.SpotRotation);
+            spotLight.type = state.SpotType;
+            spotLight.range = state.Range;
+            spotLight.spotAngle = state.SpotAngle;
+            spotLight.innerSpotAngle = state.InnerSpotAngle;
+        }
         public Vector2 VisualRadius
         {
             get

@@ -30,6 +30,9 @@ namespace ShadowPath.Shadow
         public bool HasValidGeometry => hasValidGeometry;
         public int GeometryVersion => geometryVersion;
         public Transform ProjectionPlane => projectionPlane;
+        internal bool HasCurrentCollider => hasValidGeometry && meshCollider != null
+            && meshCollider.enabled && gameObject.activeInHierarchy
+            && meshCollider.sharedMesh == runtimeMesh && runtimeMesh != null;
 
         public void SetVisualVisible(bool visible)
         {

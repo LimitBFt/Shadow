@@ -10,6 +10,12 @@ namespace ShadowPath.Tutorial
     [RequireComponent(typeof(BoxCollider))]
     public class TutorialSign : MonoBehaviour
     {
+        public enum CheckpointSpawnMode
+        {
+            PlayerPosition,
+            ManualRespawnPoint
+        }
+
         [Header("Tutorial")]
         [SerializeField] private string tutorialTitle = "MOVEMENT";
         [SerializeField, TextArea(2, 8)] private string tutorialText = "LEFT STICK — MOVE\nA — JUMP";
@@ -22,6 +28,9 @@ namespace ShadowPath.Tutorial
         [SerializeField] private bool disableLightAutoFollow;
         [Header("Checkpoint")]
         [SerializeField] private bool activateCheckpointOnRead;
+        [SerializeField] private CheckpointSpawnMode checkpointSpawnMode = CheckpointSpawnMode.PlayerPosition;
+        [InspectorName("Manual Respawn Point")]
+        [Tooltip("Used in ManualRespawnPoint mode, or as an optional fallback when PlayerPosition is unsafe.")]
         [SerializeField] private Transform respawnPoint;
 
         [Header("Runtime Debug")]
@@ -111,8 +120,14 @@ namespace ShadowPath.Tutorial
             {
                 PlayerRespawnController respawn = nearbyPlayer != null
                     ? nearbyPlayer.GetComponent<PlayerRespawnController>() : null;
-                if (respawn != null && respawnPoint != null) respawn.SetCheckpoint(respawnPoint);
-                else Debug.LogWarning("A checkpoint sign requires a Respawn Point and Player Respawn Controller.", this);
+                if (respawn == null)
+                    Debug.LogWarning("A checkpoint sign requires a Player Respawn Controller on the Player Root.", this);
+                else if (checkpointSpawnMode == CheckpointSpawnMode.PlayerPosition)
+                    respawn.TrySetCheckpointFromPlayer(respawnPoint);
+                else if (respawnPoint != null)
+                    respawn.SetCheckpoint(respawnPoint);
+                else
+                    Debug.LogWarning("ManualRespawnPoint mode requires a Manual Respawn Point.", this);
             }
 
             GameObject visual = signVisual;

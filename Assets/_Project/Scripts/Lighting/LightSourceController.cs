@@ -93,6 +93,29 @@ namespace ShadowPath.Lighting
         public bool AutoFollowPlayer => autoFollowPlayer;
         public bool ManualControlEnabled => manualControlEnabled;
 
+        internal struct CheckpointState
+        {
+            public Vector3 Position;
+            public Quaternion Rotation;
+        }
+
+        internal CheckpointState CaptureCheckpointState() => new CheckpointState
+        {
+            Position = transform.position,
+            Rotation = transform.rotation
+        };
+
+        internal bool TryRestoreCheckpointState(CheckpointState state)
+        {
+            if (projectionPlane == null || !TryWorldToPlane(state.Position, out Vector2 planePosition)
+                || (useLevelLightBounds && !IsInsideLevelBounds(planePosition))) return false;
+
+            // Relocate the pair as a transaction. The old Player position must not clamp this pose.
+            float distance = Vector3.Dot(state.Position - projectionPlane.position, projectionPlane.forward);
+            ApplyRespawnPose(state.Position, state.Rotation, planePosition, distance);
+            return true;
+        }
+
         public void SetManualControlEnabled(bool enabled)
         {
             manualControlEnabled = enabled;
@@ -155,15 +178,20 @@ namespace ShadowPath.Lighting
             float normalDistance = Vector3.Dot(transform.position - projectionPlane.position, projectionPlane.forward);
             if (!TryPlaneToWorld(new Vector2(x, y), normalDistance, out Vector3 worldPosition)) return false;
 
+            ApplyRespawnPose(worldPosition, transform.rotation, new Vector2(x, y), normalDistance);
+            return true;
+        }
+
+        private void ApplyRespawnPose(Vector3 position, Quaternion rotation, Vector2 planePosition, float normalDistance)
+        {
             signedNormalDistance = normalDistance;
-            currentLightPlanePosition = rawProposedLightPosition = finalLightPosition = new Vector2(x, y);
-            transform.position = worldPosition;
+            currentLightPlanePosition = rawProposedLightPosition = finalLightPosition = planePosition;
+            transform.SetPositionAndRotation(position, rotation);
             preserveInitialPositionForFirstUpdate = false;
             ResetMovementVelocity();
             autoFollowActive = false;
             followTargetPlanePosition = followDelta = lastClampCorrection = Vector2.zero;
             autoFollowTargetPosition = currentLightPlanePosition;
-            return true;
         }
 
         private Vector2 SafeMinLevelPosition =>

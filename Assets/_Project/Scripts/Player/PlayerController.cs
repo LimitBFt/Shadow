@@ -147,7 +147,7 @@ namespace ShadowPath.Player
                 QueryTriggerInteraction.Ignore);
         }
 
-        private void GetCapsuleCastPoints(out Vector3 point1, out Vector3 point2, out float radius)
+        internal void GetCapsuleCastPoints(out Vector3 point1, out Vector3 point2, out float radius)
         {
             Transform capsuleTransform = capsuleCollider.transform;
             Vector3 scale = capsuleTransform.lossyScale;

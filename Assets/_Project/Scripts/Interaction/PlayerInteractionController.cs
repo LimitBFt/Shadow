@@ -49,6 +49,9 @@ namespace ShadowPath.Interaction
 
         private void Update()
         {
+            if (GameplayInput.GameplayCommandsBlocked) return;
+            // A cancel that exits an interaction must not also reset/read later in this frame.
+            if (IsInteracting) GameplayInput.BlockGameplayCommandsForFrame();
             switch (state)
             {
                 case InteractionState.Normal:

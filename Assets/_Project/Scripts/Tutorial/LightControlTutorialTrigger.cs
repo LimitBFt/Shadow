@@ -1,3 +1,4 @@
+using ShadowPath.Input;
 using ShadowPath.Lighting;
 using ShadowPath.Player;
 using UnityEngine;
@@ -66,6 +67,7 @@ namespace ShadowPath.Tutorial
             lightSourceController.SetAutoFollow(false);
             tutorialPrompt.SetActive(true);
             hasTriggered = promptActive = true;
+            GameplayInput.AcquireModalInput(this);
             validInputDetected = tutorialCompleted = false;
             rawTutorialInput = Vector2.zero;
             tutorialPauseActive = true;
@@ -94,6 +96,7 @@ namespace ShadowPath.Tutorial
             if (!tutorialCompleted || unscaledNow < hidePromptAt) return;
             if (tutorialPrompt != null) tutorialPrompt.SetActive(false);
             promptActive = false;
+            GameplayInput.ReleaseModalInput(this);
         }
 
         private void ReleaseTutorialPause()
@@ -108,6 +111,7 @@ namespace ShadowPath.Tutorial
             ReleaseTutorialPause();
             if (promptActive && HasSafePrompt()) tutorialPrompt.SetActive(false);
             promptActive = false;
+            GameplayInput.ReleaseModalInput(this);
         }
 
         private void OnDestroy()
