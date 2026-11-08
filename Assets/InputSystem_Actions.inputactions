@@ -51,6 +51,24 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "CameraZoomOut",
+                    "type": "Value",
+                    "id": "56bdb633-4d26-43e1-ae26-6ce54951e9f1",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "CameraZoomIn",
+                    "type": "Value",
+                    "id": "c1456773-bad6-47eb-969e-d5c038457795",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
                     "name": "LightMove",
                     "type": "Value",
                     "id": "1edbd3df-3096-450d-883a-fc63402b0a25",
@@ -212,6 +230,50 @@
                     "processors": "",
                     "groups": "Gamepad",
                     "action": "ResetToCheckpoint",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "378d2112-f42b-4dd0-916b-03a0e14f42c8",
+                    "path": "<Gamepad>/leftTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "CameraZoomOut",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "573f832f-3114-4b7a-9bf9-d96c6407db48",
+                    "path": "<Keyboard>/pageDown",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "CameraZoomOut",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "f21f6e4c-c505-47de-8cf8-9a3f6cdb2e20",
+                    "path": "<Gamepad>/rightTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "CameraZoomIn",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "148edb6a-c262-4cac-8829-a9c47d60e5e3",
+                    "path": "<Keyboard>/pageUp",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "CameraZoomIn",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

@@ -19,6 +19,8 @@ namespace ShadowPath.Input
         public static InputAction Cancel { get; private set; }
         public static InputAction LightMove { get; private set; }
         public static InputAction ResetToCheckpoint { get; private set; }
+        public static InputAction CameraZoomOut { get; private set; }
+        public static InputAction CameraZoomIn { get; private set; }
 
         public static bool GameplayCommandsBlocked =>
             Time.timeScale <= 0f || modalInputOwners.Count > 0 || blockedCommandFrame == Time.frameCount;
@@ -83,6 +85,8 @@ namespace ShadowPath.Input
             LightMove = FindRequiredAction("LightMove", context);
             // Older action assets can continue to supply movement without the optional reset action.
             ResetToCheckpoint = actionMap.FindAction("ResetToCheckpoint", false);
+            CameraZoomOut = actionMap.FindAction("CameraZoomOut", false);
+            CameraZoomIn = actionMap.FindAction("CameraZoomIn", false);
 
             if (Move == null || Jump == null || Interact == null || Cancel == null || LightMove == null)
             {

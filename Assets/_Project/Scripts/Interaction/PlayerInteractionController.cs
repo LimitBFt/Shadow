@@ -35,6 +35,7 @@ namespace ShadowPath.Interaction
         public bool IsInteracting => state != InteractionState.Normal;
         public bool IsSelecting => state == InteractionState.Selecting;
         public bool IsRotatingObject => state == InteractionState.Rotating;
+        public InteractionStation CurrentStation => IsInteracting ? currentStation : null;
 
         private void Awake()
         {

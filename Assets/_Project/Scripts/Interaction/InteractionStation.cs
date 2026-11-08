@@ -16,7 +16,94 @@ namespace ShadowPath.Interaction
         [SerializeField] private Vector3 controlAreaSize = new Vector3(10f, 6f, 2f);
         [SerializeField] private List<RotatableObject> controlledObjects = new List<RotatableObject>();
 
+        [Header("Interaction Camera")]
+        [SerializeField] private bool useInteractionCamera = true;
+        [SerializeField] private Transform cameraFocusPoint;
+        [SerializeField] private float interactionCameraNormalOffset = -18f;
+        [SerializeField, Min(0.01f)] private float cameraTransitionSmoothTime = 0.6f;
+
+        [Header("Auto Frame")]
+        [SerializeField] private bool autoFrameControlledObjects;
+        [Tooltip("Viewport inset on each edge, as a fraction of the full viewport.")]
+        [SerializeField, Range(0f, 0.45f)] private float framePadding = 0.15f;
+        [SerializeField, Min(0.01f)] private float autoFrameSmoothTime = 0.6f;
+        [Tooltip("Auto Frame only. Negative offsets extend along the negative ProjectionPlane normal.")]
+        [SerializeField] private float minInteractionNormalOffset = -20f;
+        [SerializeField] private float maxInteractionNormalOffset = -10f;
+
+        private readonly List<Renderer> cameraRenderers = new List<Renderer>(16);
+        private readonly List<Collider> cameraColliders = new List<Collider>(8);
+
         public IReadOnlyList<RotatableObject> ControlledObjects => controlledObjects;
+        public bool UseInteractionCamera => useInteractionCamera;
+        public float InteractionCameraNormalOffset => interactionCameraNormalOffset;
+        public float CameraTransitionSmoothTime => Mathf.Max(0.01f, cameraTransitionSmoothTime);
+        public bool AutoFrameControlledObjects => autoFrameControlledObjects;
+        public float FramePadding => Mathf.Clamp(framePadding, 0f, 0.45f);
+        public float AutoFrameSmoothTime => Mathf.Max(0.01f, autoFrameSmoothTime);
+        public Vector2 InteractionNormalOffsetRange => new Vector2(minInteractionNormalOffset, maxInteractionNormalOffset);
+
+        public void CollectCameraFramePoints(List<Vector3> points)
+        {
+            points.Clear();
+            if (controlledObjects == null) return;
+            foreach (RotatableObject controlledObject in controlledObjects)
+            {
+                if (controlledObject == null || !controlledObject.isActiveAndEnabled) continue;
+                int startCount = points.Count;
+                cameraRenderers.Clear();
+                controlledObject.GetComponentsInChildren(false, cameraRenderers);
+                foreach (Renderer objectRenderer in cameraRenderers)
+                    if (objectRenderer != null && objectRenderer.enabled) AddBoundsCorners(objectRenderer.bounds, points);
+                if (points.Count != startCount) continue;
+                cameraColliders.Clear();
+                controlledObject.GetComponentsInChildren(false, cameraColliders);
+                foreach (Collider objectCollider in cameraColliders)
+                    if (objectCollider != null && objectCollider.enabled)
+                        AddBoundsCorners(objectCollider.bounds, points);
+            }
+        }
+
+        private static void AddBoundsCorners(Bounds bounds, List<Vector3> points)
+        {
+            Vector3 minimum = bounds.min;
+            Vector3 maximum = bounds.max;
+            for (int corner = 0; corner < 8; corner++)
+                points.Add(new Vector3((corner & 1) == 0 ? minimum.x : maximum.x,
+                    (corner & 2) == 0 ? minimum.y : maximum.y,
+                    (corner & 4) == 0 ? minimum.z : maximum.z));
+        }
+
+        public Vector3 GetCameraFocusPosition()
+        {
+            if (cameraFocusPoint != null) return cameraFocusPoint.position;
+            bool hasBounds = false;
+            Bounds combinedBounds = default;
+            if (controlledObjects != null)
+            {
+                foreach (RotatableObject controlledObject in controlledObjects)
+                {
+                    if (controlledObject == null || !controlledObject.isActiveAndEnabled) continue;
+                    cameraRenderers.Clear();
+                    controlledObject.GetComponentsInChildren(false, cameraRenderers);
+                    bool hasRenderer = false;
+                    foreach (Renderer objectRenderer in cameraRenderers)
+                    {
+                        if (objectRenderer == null || !objectRenderer.enabled) continue;
+                        Bounds bounds = objectRenderer.bounds;
+                        if (hasBounds) combinedBounds.Encapsulate(bounds);
+                        else combinedBounds = bounds;
+                        hasBounds = true;
+                        hasRenderer = true;
+                    }
+                    if (hasRenderer) continue;
+                    if (hasBounds) combinedBounds.Encapsulate(controlledObject.transform.position);
+                    else combinedBounds = new Bounds(controlledObject.transform.position, Vector3.zero);
+                    hasBounds = true;
+                }
+            }
+            return hasBounds ? combinedBounds.center : transform.position;
+        }
 
 #if UNITY_EDITOR
         [ContextMenu("Auto Collect Controlled Objects")]

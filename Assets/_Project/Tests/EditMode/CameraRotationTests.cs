@@ -1,7 +1,9 @@
 #if SHADOWPATH_ENABLE_EDITMODE_TESTS
 using System.Reflection;
+using System.Collections.Generic;
 using NUnit.Framework;
 using ShadowPath.Camera;
+using ShadowPath.Interaction;
 using UnityEngine;
 
 namespace ShadowPath.Tests.EditMode
@@ -68,6 +70,170 @@ namespace ShadowPath.Tests.EditMode
                 Object.DestroyImmediate(player);
                 Object.DestroyImmediate(plane);
             }
+        }
+
+        [Test]
+        public void InteractionCameraPreservesManualTargetAcrossSelectingAndRotating()
+        {
+            var owner = new GameObject("Interaction Camera Test");
+            owner.SetActive(false);
+            var player = new GameObject("Player");
+            var plane = new GameObject("Plane");
+            var stationObject = new GameObject("Station");
+            try
+            {
+                var source = player.AddComponent<PlayerInteractionController>();
+                stationObject.AddComponent<BoxCollider>();
+                var station = stationObject.AddComponent<InteractionStation>();
+                stationObject.transform.position = new Vector3(4f, 1f, 0f);
+                var controller = owner.AddComponent<CameraFollowController>();
+                Set(controller, "target", player.transform);
+                Set(controller, "projectionPlane", plane.transform);
+                Set(controller, "planeNormalOffset", -15f);
+                Invoke(controller, "TrySnapToTarget");
+                Set(controller, "targetPlaneNormalOffset", -12f);
+                SetInteractionState(source, InteractionState.Selecting, station);
+                Invoke(controller, "UpdateInteractionStation");
+                Assert.That(Get(controller, "savedManualZoomOffset"), Is.EqualTo(-12f));
+                for (int i = 0; i < 150; i++)
+                {
+                    Invoke(controller, "UpdateManualZoom", 0.02f);
+                    Invoke(controller, "UpdateInteractionComposition", Vector3.zero, plane.transform.forward, 0.02f);
+                }
+                Assert.That((float)Get(controller, "currentPlaneNormalOffset")
+                    + (float)Get(controller, "interactionZoomDelta"), Is.EqualTo(-18f).Within(0.01f));
+                Assert.That(Get(controller, "targetPlaneNormalOffset"), Is.EqualTo(-12f));
+
+                Vector3 focusBefore = (Vector3)Get(controller, "interactionFocusOffset");
+                SetInteractionState(source, InteractionState.Rotating, station);
+                Invoke(controller, "UpdateInteractionStation");
+                Assert.That(Get(controller, "interactionFocusOffset"), Is.EqualTo(focusBefore));
+                Assert.That(Get(controller, "savedManualZoomOffset"), Is.EqualTo(-12f));
+                SetInteractionState(source, InteractionState.Selecting, station);
+                Invoke(controller, "UpdateInteractionStation");
+                Assert.That(Get(controller, "interactionCameraActive"), Is.True);
+
+                source.ExitInteractionMode();
+                Invoke(controller, "UpdateInteractionStation");
+                Assert.That(Get(controller, "interactionCameraActive"), Is.False);
+                for (int i = 0; i < 300; i++)
+                {
+                    Invoke(controller, "UpdateManualZoom", 0.02f);
+                    // A moving normal focus must not prevent the return transition from finishing.
+                    Invoke(controller, "UpdateInteractionComposition", new Vector3(i * 0.1f, 0f, 0f),
+                        plane.transform.forward, 0.02f);
+                }
+                Assert.That(Get(controller, "interactionTransitionActive"), Is.False);
+                Assert.That(Get(controller, "targetPlaneNormalOffset"), Is.EqualTo(-12f));
+                Assert.That(Get(controller, "currentPlaneNormalOffset"), Is.EqualTo(-12f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(owner);
+                Object.DestroyImmediate(stationObject);
+                Object.DestroyImmediate(player);
+                Object.DestroyImmediate(plane);
+            }
+        }
+
+        [Test]
+        public void InterruptedInteractionTransitionsPreserveCurrentOffsetsAndReleaseOnDisable()
+        {
+            var owner = new GameObject("Camera Lifecycle Test");
+            owner.SetActive(false);
+            var player = new GameObject("Player");
+            var plane = new GameObject("Plane");
+            var stationObject = new GameObject("Station");
+            try
+            {
+                var source = player.AddComponent<PlayerInteractionController>();
+                stationObject.AddComponent<BoxCollider>();
+                var station = stationObject.AddComponent<InteractionStation>();
+                stationObject.transform.position = new Vector3(6f, 2f, 0f);
+                var controller = owner.AddComponent<CameraFollowController>();
+                Set(controller, "target", player.transform);
+                Set(controller, "projectionPlane", plane.transform);
+                Set(controller, "planeNormalOffset", -15f);
+                Invoke(controller, "TrySnapToTarget");
+                Set(controller, "targetPlaneNormalOffset", -12f);
+                SetInteractionState(source, InteractionState.Selecting, station);
+                Invoke(controller, "UpdateInteractionStation");
+                Invoke(controller, "UpdateInteractionComposition", Vector3.zero, plane.transform.forward, 0.1f);
+                Vector3 offset = (Vector3)Get(controller, "interactionFocusOffset");
+                float zoomDelta = (float)Get(controller, "interactionZoomDelta");
+                Vector3 position = owner.transform.position;
+                source.ExitInteractionMode();
+                Invoke(controller, "UpdateInteractionStation");
+                SetInteractionState(source, InteractionState.Selecting, station);
+                Invoke(controller, "UpdateInteractionStation");
+                Assert.That(Get(controller, "interactionFocusOffset"), Is.EqualTo(offset));
+                Assert.That(Get(controller, "interactionZoomDelta"), Is.EqualTo(zoomDelta));
+                Assert.That(owner.transform.position, Is.EqualTo(position));
+
+                station.enabled = false;
+                Invoke(controller, "UpdateInteractionStation");
+                Assert.That(Get(controller, "interactionCameraActive"), Is.False);
+                Assert.That(Get(controller, "targetPlaneNormalOffset"), Is.EqualTo(-12f));
+                station.enabled = true;
+                Invoke(controller, "UpdateInteractionStation");
+                Assert.That(Get(controller, "interactionCameraActive"), Is.True);
+                Invoke(controller, "OnDisable");
+                Assert.That(Get(controller, "interactionCameraActive"), Is.False);
+                Invoke(controller, "OnEnable");
+                Assert.That(owner.transform.position, Is.EqualTo(position));
+                Assert.That(Get(controller, "initialized"), Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(owner);
+                Object.DestroyImmediate(stationObject);
+                Object.DestroyImmediate(player);
+                Object.DestroyImmediate(plane);
+            }
+        }
+
+        [Test]
+        public void StationFocusUsesCombinedObjectBoundsOrExplicitMarker()
+        {
+            var stationObject = new GameObject("Focus Test");
+            GameObject first = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            GameObject second = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var marker = new GameObject("Focus Marker");
+            try
+            {
+                stationObject.AddComponent<BoxCollider>();
+                var station = stationObject.AddComponent<InteractionStation>();
+                first.transform.position = new Vector3(-4f, 0f, -3f);
+                second.transform.position = new Vector3(6f, 2f, -5f);
+                second.transform.localScale = Vector3.one * 3f;
+                var firstObject = first.AddComponent<RotatableObject>();
+                var secondObject = second.AddComponent<RotatableObject>();
+                typeof(InteractionStation).GetField("controlledObjects", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(station, new List<RotatableObject> { firstObject, secondObject });
+                Bounds expected = first.GetComponent<Renderer>().bounds;
+                expected.Encapsulate(second.GetComponent<Renderer>().bounds);
+                Assert.That(station.GetCameraFocusPosition(), Is.EqualTo(expected.center));
+                marker.transform.position = new Vector3(10f, 3f, 0f);
+                typeof(InteractionStation).GetField("cameraFocusPoint", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .SetValue(station, marker.transform);
+                Assert.That(station.GetCameraFocusPosition(), Is.EqualTo(marker.transform.position));
+            }
+            finally
+            {
+                Object.DestroyImmediate(stationObject);
+                Object.DestroyImmediate(first);
+                Object.DestroyImmediate(second);
+                Object.DestroyImmediate(marker);
+            }
+        }
+
+        private static void SetInteractionState(PlayerInteractionController controller, InteractionState state,
+            InteractionStation station)
+        {
+            typeof(PlayerInteractionController).GetField("state", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(controller, state);
+            typeof(PlayerInteractionController).GetField("currentStation", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(controller, station);
         }
 
         private static void Rotate(CameraFollowController controller, Transform plane) =>
