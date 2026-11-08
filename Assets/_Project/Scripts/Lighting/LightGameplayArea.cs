@@ -120,6 +120,9 @@ namespace ShadowPath.Lighting
             projectionPlane != null ? projectionPlane.right : Vector3.right;
         public Vector3 ProjectionPlaneUp =>
             projectionPlane != null ? projectionPlane.up : Vector3.up;
+        internal LightSourceController LightController =>
+            lightSource != null ? lightSource.GetComponent<LightSourceController>() : null;
+        internal Transform ProjectionPlane => projectionPlane;
         public Vector2 VisualRadius
         {
             get

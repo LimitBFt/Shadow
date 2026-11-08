@@ -14,21 +14,28 @@ namespace ShadowPath.Tutorial
         [SerializeField] private string tutorialTitle = "MOVEMENT";
         [SerializeField, TextArea(2, 8)] private string tutorialText = "LEFT STICK — MOVE\nA — JUMP";
         [SerializeField] private TutorialSignUI tutorialUI;
+        [SerializeField] private GameObject signVisual;
 
         [Header("Gameplay Action")]
         [SerializeField] private LightSourceController lightSourceController;
         [SerializeField] private bool unlockManualLightControl;
         [SerializeField] private bool disableLightAutoFollow;
-        [SerializeField] private bool gameplayActionOneShot = true;
+        [Header("Checkpoint")]
+        [SerializeField] private bool activateCheckpointOnRead;
+        [SerializeField] private Transform respawnPoint;
 
         [Header("Runtime Debug")]
         [SerializeField] private bool playerInRange;
-        [SerializeField] private bool gameplayActionExecuted;
 
         private readonly HashSet<Collider> playerColliders = new HashSet<Collider>();
         private PlayerInteractionController playerInteraction;
+        private PlayerController nearbyPlayer;
+        private bool ownsTutorialPause;
 
-        internal bool CanRead => isActiveAndEnabled && playerInRange
+        public bool IsReading => ownsTutorialPause;
+        public bool HasBeenRead { get; private set; }
+
+        internal bool CanRead => isActiveAndEnabled && playerInRange && !HasBeenRead
             && (playerInteraction == null || !playerInteraction.IsInteracting);
 
         private void Reset() => GetComponent<BoxCollider>().isTrigger = true;
@@ -38,9 +45,10 @@ namespace ShadowPath.Tutorial
 
         private void TrackPlayer(Collider other)
         {
-            if (!isActiveAndEnabled || other == null) return;
+            if (!isActiveAndEnabled || HasBeenRead || other == null) return;
             PlayerController player = other.GetComponentInParent<PlayerController>();
             if (player == null || !playerColliders.Add(other)) return;
+            nearbyPlayer = player;
             playerInteraction = player.GetComponent<PlayerInteractionController>();
             playerInRange = true;
             if (tutorialUI != null) tutorialUI.EnterSign(this);
@@ -64,36 +72,69 @@ namespace ShadowPath.Tutorial
 
         private void LeaveRange()
         {
+            CancelReading();
             playerColliders.Clear();
             playerInRange = false;
             playerInteraction = null;
+            nearbyPlayer = null;
             if (tutorialUI != null) tutorialUI.ExitSign(this);
         }
 
         internal void Read()
         {
-            if (!CanRead || tutorialUI == null || tutorialUI.FocusedSign != this) return;
+            if (!CanRead || Time.timeScale <= 0f || tutorialUI == null || tutorialUI.FocusedSign != this) return;
             if (!tutorialUI.HasTutorialPanel)
             {
                 Debug.LogWarning("Configure the shared Tutorial Sign UI panel and text references before reading.", this);
                 return;
             }
-            if (!gameplayActionOneShot || !gameplayActionExecuted)
-            {
-                bool hasLightAction = disableLightAutoFollow || unlockManualLightControl;
-                if (hasLightAction && lightSourceController == null)
-                {
-                    Debug.LogWarning("This sign unlocks Light control but has no Light Source Controller assigned.", this);
-                    return;
-                }
-                // Existing APIs clear motion history and preserve the current world position.
-                if (disableLightAutoFollow) lightSourceController.SetAutoFollow(false);
-                if (unlockManualLightControl) lightSourceController.SetManualControlEnabled(true);
-                gameplayActionExecuted = true;
-            }
+            ownsTutorialPause = true;
+            Time.timeScale = 0f;
             tutorialUI.ShowTutorial(tutorialTitle, tutorialText);
         }
 
+        internal void CompleteReading()
+        {
+            if (!IsReading) return;
+            HasBeenRead = true;
+            CancelReading();
+
+            if (lightSourceController != null)
+            {
+                if (disableLightAutoFollow) lightSourceController.SetAutoFollow(false);
+                if (unlockManualLightControl) lightSourceController.SetManualControlEnabled(true);
+            }
+            else if (disableLightAutoFollow || unlockManualLightControl)
+                Debug.LogWarning("This sign unlocks Light control but has no Light Source Controller assigned.", this);
+
+            if (activateCheckpointOnRead)
+            {
+                PlayerRespawnController respawn = nearbyPlayer != null
+                    ? nearbyPlayer.GetComponent<PlayerRespawnController>() : null;
+                if (respawn != null && respawnPoint != null) respawn.SetCheckpoint(respawnPoint);
+                else Debug.LogWarning("A checkpoint sign requires a Respawn Point and Player Respawn Controller.", this);
+            }
+
+            GameObject visual = signVisual;
+            if (visual == null)
+            {
+                Transform child = transform.Find("SignVisual");
+                if (child != null) visual = child.gameObject;
+            }
+            if (visual != null && !transform.IsChildOf(visual.transform)) visual.SetActive(false);
+            GetComponent<BoxCollider>().enabled = false;
+            LeaveRange();
+        }
+
+        internal void CancelReading()
+        {
+            if (!ownsTutorialPause) return;
+            ownsTutorialPause = false;
+            Time.timeScale = 1f;
+            if (tutorialUI != null) tutorialUI.HideTutorial();
+        }
+
         private void OnDisable() => LeaveRange();
+        private void OnDestroy() => CancelReading();
     }
 }

@@ -140,6 +140,32 @@ namespace ShadowPath.Lighting
             smoothedKeyboardInput = rawInput = processedInput = Vector2.zero;
         }
 
+        internal bool TryRestoreForRespawn(Vector3 playerWorldPosition, float radius)
+        {
+            if (projectionPlane == null
+                || !TryWorldToPlane(playerWorldPosition, out Vector2 playerPosition)
+                || !TryWorldToPlane(transform.position, out Vector2 lightPosition)) return false;
+
+            Vector2 minimum = useLevelLightBounds ? SafeMinLevelPosition : playerPosition - Vector2.one * radius;
+            Vector2 maximum = useLevelLightBounds ? SafeMaxLevelPosition : playerPosition + Vector2.one * radius;
+            if (!CircleGameplayConstraint.TryClamp(lightPosition.x, lightPosition.y,
+                playerPosition.x, playerPosition.y, radius, minimum.x, minimum.y, maximum.x, maximum.y,
+                out float x, out float y)) return false;
+
+            float normalDistance = Vector3.Dot(transform.position - projectionPlane.position, projectionPlane.forward);
+            if (!TryPlaneToWorld(new Vector2(x, y), normalDistance, out Vector3 worldPosition)) return false;
+
+            signedNormalDistance = normalDistance;
+            currentLightPlanePosition = rawProposedLightPosition = finalLightPosition = new Vector2(x, y);
+            transform.position = worldPosition;
+            preserveInitialPositionForFirstUpdate = false;
+            ResetMovementVelocity();
+            autoFollowActive = false;
+            followTargetPlanePosition = followDelta = lastClampCorrection = Vector2.zero;
+            autoFollowTargetPosition = currentLightPlanePosition;
+            return true;
+        }
+
         private Vector2 SafeMinLevelPosition =>
             Vector2.Min(minLevelLightPosition, maxLevelLightPosition);
 

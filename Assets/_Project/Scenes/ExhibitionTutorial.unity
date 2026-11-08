@@ -7168,6 +7168,9 @@ MonoBehaviour:
     m_Bits: 1
   moveSpeed: 5
   jumpForce: 7
+  fallGravityMultiplier: 2.2
+  lowJumpGravityMultiplier: 2.2
+  maxFallSpeed: 18
   groundCheckDistance: 0.33
   lightGameplayArea: {fileID: 1845754002}
   pendingExternalDisplacement: {x: 0, y: 0, z: 0}

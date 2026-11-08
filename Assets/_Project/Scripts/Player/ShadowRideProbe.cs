@@ -147,7 +147,7 @@ namespace ShadowPath.Player
                 || hitTransform.IsChildOf(transform);
         }
 
-        private void ClearSupportState()
+        internal void ClearSupportState()
         {
             currentShadow = null;
             hasShadowSupport = false;

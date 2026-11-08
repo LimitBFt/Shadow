@@ -20,10 +20,13 @@ namespace ShadowPath.Tests.EditMode
         private TMP_Text body;
         private Collider playerCollider;
         private LightSourceController light;
+        private float previousTimeScale;
 
         [SetUp]
         public void SetUp()
         {
+            previousTimeScale = Time.timeScale;
+            Time.timeScale = 1f;
             root = new GameObject("Sign Test");
             GameObject uiOwner = Child("UI Controller");
             uiOwner.SetActive(false);
@@ -53,31 +56,45 @@ namespace ShadowPath.Tests.EditMode
         }
 
         [TearDown]
-        public void TearDown() => Object.DestroyImmediate(root);
+        public void TearDown()
+        {
+            Object.DestroyImmediate(root);
+            Time.timeScale = previousTimeScale;
+        }
 
         [Test]
-        public void ProximityOnlyShowsReadPrompt_FirstSignNeverChangesGameplayOrTimeScale()
+        public void ReadingPausesUntilCompletionAndConsumesTheSign()
         {
-            float scale = Time.timeScale;
+            GameObject visual = Child("SignVisual", sign.transform);
             Enter(sign, playerCollider);
             Assert.That(prompt.activeSelf, Is.True);
             Assert.That(panel.activeSelf, Is.False);
             Assert.That(light.AutoFollowPlayer, Is.True);
             Assert.That(light.ManualControlEnabled, Is.False);
-            ui.ToggleFocusedTutorial();
+            sign.Read();
             Assert.That(panel.activeSelf, Is.True);
             Assert.That(prompt.activeSelf, Is.False);
             Assert.That(body.text, Is.EqualTo("LEFT STICK — MOVE\nA — JUMP"));
             Assert.That(light.AutoFollowPlayer, Is.True);
             Assert.That(light.ManualControlEnabled, Is.False);
-            Assert.That(Time.timeScale, Is.EqualTo(scale));
-            ui.ToggleFocusedTutorial();
+            Assert.That(Time.timeScale, Is.Zero);
+            Assert.That(sign.IsReading, Is.True);
+            sign.Read();
+            Assert.That(sign.IsReading, Is.True);
+            sign.CompleteReading();
             Assert.That(panel.activeSelf, Is.False);
-            Assert.That(prompt.activeSelf, Is.True);
+            Assert.That(prompt.activeSelf, Is.False);
+            Assert.That(sign.IsReading, Is.False);
+            Assert.That(sign.HasBeenRead, Is.True);
+            Assert.That(Time.timeScale, Is.EqualTo(1f));
+            Assert.That(visual.activeSelf, Is.False);
+            Assert.That(sign.GetComponent<BoxCollider>().enabled, Is.False);
+            Enter(sign, playerCollider);
+            Assert.That(prompt.activeSelf, Is.False);
         }
 
         [Test]
-        public void LightSign_UnlocksOnlyOnFirstReadingWithoutSnap()
+        public void LightSign_UnlocksOnlyAfterCompletingReadingWithoutSnap()
         {
             Set(sign, "unlockManualLightControl", true);
             Set(sign, "disableLightAutoFollow", true);
@@ -87,17 +104,20 @@ namespace ShadowPath.Tests.EditMode
             Set(light, "autoFollowVelocity", Vector2.one);
             Enter(sign, playerCollider);
             Assert.That(light.AutoFollowPlayer, Is.True);
-            ui.ToggleFocusedTutorial();
+            sign.Read();
+            Assert.That(light.AutoFollowPlayer, Is.True);
+            Assert.That(light.ManualControlEnabled, Is.False);
+            sign.CompleteReading();
             Assert.That(light.AutoFollowPlayer, Is.False);
             Assert.That(light.ManualControlEnabled, Is.True);
             Assert.That(light.transform.position, Is.EqualTo(position));
             Assert.That(Get(light, "autoFollowVelocity"), Is.EqualTo(Vector2.zero));
             Assert.That(body.text, Is.EqualTo("RIGHT STICK — MOVE LIGHT"));
-            ui.ToggleFocusedTutorial();
             light.SetAutoFollow(true);
             light.SetManualControlEnabled(false);
-            ui.ToggleFocusedTutorial();
-            Assert.That(panel.activeSelf, Is.True);
+            sign.Read();
+            sign.CompleteReading();
+            Assert.That(panel.activeSelf, Is.False);
             Assert.That(light.AutoFollowPlayer, Is.True, "Reading again must not replay gameplay actions.");
             Assert.That(light.ManualControlEnabled, Is.False);
             Assert.That(light.transform.position, Is.EqualTo(position));
@@ -109,12 +129,14 @@ namespace ShadowPath.Tests.EditMode
             Collider second = playerCollider.gameObject.AddComponent<BoxCollider>();
             Enter(sign, playerCollider);
             Enter(sign, second);
-            ui.ToggleFocusedTutorial();
+            sign.Read();
             Exit(sign, playerCollider);
             Assert.That(panel.activeSelf, Is.True);
             Exit(sign, second);
             Assert.That(panel.activeSelf, Is.False);
             Assert.That(prompt.activeSelf, Is.False);
+            Assert.That(sign.HasBeenRead, Is.False);
+            Assert.That(Time.timeScale, Is.EqualTo(1f));
         }
 
         [Test]
@@ -125,13 +147,66 @@ namespace ShadowPath.Tests.EditMode
             Set(second, "disableLightAutoFollow", true);
             Enter(sign, playerCollider);
             Enter(second, playerCollider);
-            ui.ToggleFocusedTutorial();
+            sign.Read();
             Assert.That(light.ManualControlEnabled, Is.False);
-            Exit(sign, playerCollider);
+            sign.CompleteReading();
             Assert.That(ui.FocusedSign, Is.EqualTo(second));
             Assert.That(panel.activeSelf, Is.False);
-            ui.ToggleFocusedTutorial();
+            second.Read();
+            Assert.That(light.ManualControlEnabled, Is.False);
+            second.CompleteReading();
             Assert.That(light.ManualControlEnabled, Is.True);
+        }
+
+        [Test]
+        public void DisablingSignOnlyRestoresPauseItOwns()
+        {
+            Enter(sign, playerCollider);
+            Time.timeScale = 0f;
+            sign.Read();
+            Assert.That(sign.IsReading, Is.False);
+            Invoke(sign, "OnDisable");
+            Assert.That(Time.timeScale, Is.Zero);
+
+            Time.timeScale = 1f;
+            Enter(sign, playerCollider);
+            sign.Read();
+            Invoke(sign, "OnDisable");
+            Assert.That(Time.timeScale, Is.EqualTo(1f));
+            Assert.That(sign.HasBeenRead, Is.False);
+            Assert.That(panel.activeSelf, Is.False);
+        }
+
+        [Test]
+        public void CheckpointOnlyChangesOnCompletionAndRespawnKeepsTheSignConsumed()
+        {
+            Rigidbody playerBody = playerCollider.GetComponent<Rigidbody>();
+            Vector3 start = new Vector3(1f, 2f, 3f);
+            playerBody.position = start;
+            playerBody.constraints = RigidbodyConstraints.FreezePositionZ;
+            var respawn = playerBody.gameObject.AddComponent<PlayerRespawnController>();
+            Invoke(respawn, "Awake");
+
+            Transform point = Child("Respawn Point").transform;
+            point.SetPositionAndRotation(new Vector3(4f, 5f, 9f), Quaternion.Euler(0f, 90f, 0f));
+            Set(sign, "activateCheckpointOnRead", true);
+            Set(sign, "respawnPoint", point);
+            Enter(sign, playerCollider);
+            sign.Read();
+            playerBody.position = Vector3.zero;
+            respawn.Respawn();
+            Assert.That(playerBody.position, Is.EqualTo(start));
+
+            sign.CompleteReading();
+            playerBody.linearVelocity = Vector3.one;
+            playerBody.angularVelocity = Vector3.up;
+            respawn.Respawn();
+            Assert.That(playerBody.position, Is.EqualTo(new Vector3(4f, 5f, 3f)));
+            Assert.That(Quaternion.Angle(playerBody.rotation, point.rotation), Is.LessThan(0.01f));
+            Assert.That(playerBody.linearVelocity, Is.EqualTo(Vector3.zero));
+            Assert.That(playerBody.angularVelocity, Is.EqualTo(Vector3.zero));
+            Assert.That(playerBody.constraints, Is.EqualTo(RigidbodyConstraints.FreezePositionZ));
+            Assert.That(sign.HasBeenRead, Is.True);
         }
 
         [Test]

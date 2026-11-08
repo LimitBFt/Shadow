@@ -11,6 +11,9 @@ namespace ShadowPath.Player
         [SerializeField] private LayerMask groundMask;
         [SerializeField] private float moveSpeed = 5f;
         [SerializeField] private float jumpForce = 7f;
+        [SerializeField, Min(1f)] private float fallGravityMultiplier = 2.2f;
+        [SerializeField, Min(1f)] private float lowJumpGravityMultiplier = 2.5f;
+        [SerializeField, Min(0.01f)] private float maxFallSpeed = 18f;
         [SerializeField] private float groundCheckDistance = 0.08f;
         [SerializeField] private LightGameplayArea lightGameplayArea;
         [SerializeField] private Vector3 pendingExternalDisplacement;
@@ -20,6 +23,16 @@ namespace ShadowPath.Player
         private CapsuleCollider capsuleCollider;
         private float moveInput;
         private bool jumpRequested;
+        private bool jumpHeld;
+
+        internal LightGameplayArea GameplayArea => lightGameplayArea;
+
+        internal void ResetTransientMovement()
+        {
+            moveInput = 0f;
+            jumpRequested = jumpHeld = false;
+            pendingExternalDisplacement = consumedExternalDisplacement = Vector3.zero;
+        }
 
         private void Awake()
         {
@@ -34,6 +47,7 @@ namespace ShadowPath.Player
         private void Update()
         {
             moveInput = ReadMoveInput();
+            jumpHeld = GameplayInput.Jump?.IsPressed() ?? false;
 
             if (ReadJumpPressed())
             {
@@ -44,29 +58,48 @@ namespace ShadowPath.Player
         private void FixedUpdate()
         {
             bool grounded = IsGrounded();
+            // The Rigidbody moves in world XY, so use the in-plane part of ProjectionPlane Up.
+            Vector3 planeUp = lightGameplayArea != null ? lightGameplayArea.ProjectionPlaneUp : Vector3.up;
+            planeUp.z = 0f;
+            planeUp = planeUp.sqrMagnitude > 0.000001f ? planeUp.normalized : Vector3.up;
+
             Vector3 velocity = body.linearVelocity;
             velocity.x = moveInput * moveSpeed;
             velocity.z = 0f;
-            if (jumpRequested && grounded)
+            bool jumping = jumpRequested && grounded;
+            float upSpeed = Vector3.Dot(velocity, planeUp);
+            if (jumping)
             {
-                // Assemble the same VelocityChange impulse before the final movement constraint.
-                // AddForce queues an impulse for physics, where it could bypass this frame's constraint.
-                velocity.y = Mathf.Max(0f, velocity.y) + jumpForce;
+                velocity += planeUp * (jumpForce - upSpeed);
+                upSpeed = jumpForce;
+            }
+
+            float dt = Time.fixedDeltaTime;
+            Vector3 gravityStep = body.useGravity ? Physics.gravity * dt : Vector3.zero;
+            gravityStep.z = 0f;
+            velocity += gravityStep;
+
+            if (!grounded || jumping)
+            {
+                float gravityUpStep = Vector3.Dot(gravityStep, planeUp);
+                float nextUpSpeed = upSpeed + gravityUpStep;
+                float gravityMultiplier = nextUpSpeed <= 0f
+                    ? fallGravityMultiplier
+                    : (jumpHeld ? 1f : lowJumpGravityMultiplier);
+                float adjustedUpSpeed = Mathf.Max(-maxFallSpeed,
+                    upSpeed + gravityUpStep * gravityMultiplier);
+                velocity += planeUp * (adjustedUpSpeed - nextUpSpeed);
             }
 
             Vector3 externalDisplacement = ConsumeExternalDisplacement() - body.position;
             if (lightGameplayArea != null)
             {
-                float dt = Time.fixedDeltaTime;
-                Vector3 gravityStep = body.useGravity ? Physics.gravity * dt : Vector3.zero;
-                gravityStep.z = 0f;
                 lightGameplayArea.ConstrainPlayerMovement(body.position, externalDisplacement,
-                    velocity + gravityStep, dt, out externalDisplacement, out Vector3 constrainedVelocity);
-                // Unity still integrates gravity normally. Account for its upcoming step so it
-                // cannot push the body through the lower circle edge after FixedUpdate finishes.
-                velocity = constrainedVelocity - gravityStep;
+                    velocity, dt, out externalDisplacement, out velocity);
             }
 
+            // Unity still applies its built-in gravity step after FixedUpdate.
+            velocity -= gravityStep;
             velocity.z = 0f;
             body.linearVelocity = velocity;
             if (externalDisplacement.sqrMagnitude > 0.0000000001f)

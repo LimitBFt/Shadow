@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using ShadowPath.Input;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace ShadowPath.Tutorial
 {
@@ -17,9 +18,10 @@ namespace ShadowPath.Tutorial
         [SerializeField] private GameObject tutorialPanel;
         [SerializeField] private TMP_Text titleLabel;
         [SerializeField] private TMP_Text bodyLabel;
+        [SerializeField] private TMP_Text closePromptLabel;
+        [SerializeField] private string closePromptText = "B — CLOSE";
 
         private readonly List<TutorialSign> nearbySigns = new List<TutorialSign>(4);
-        private bool tutorialVisible;
         internal TutorialSign FocusedSign { get; private set; }
         internal bool HasTutorialPanel => IsSafeWidget(tutorialPanel) && titleLabel != null && bodyLabel != null;
 
@@ -44,6 +46,8 @@ namespace ShadowPath.Tutorial
 
         private void RefreshFocus()
         {
+            if (FocusedSign != null && FocusedSign.IsReading) return;
+
             TutorialSign next = null;
             if (isActiveAndEnabled)
                 for (int i = 0; i < nearbySigns.Count; i++)
@@ -60,20 +64,20 @@ namespace ShadowPath.Tutorial
             // Existing object-interaction modes take priority when their ranges overlap a sign.
             TutorialSign previousFocus = FocusedSign;
             RefreshFocus();
+            if (FocusedSign != null && FocusedSign.IsReading)
+            {
+                foreach (Gamepad gamepad in Gamepad.all)
+                {
+                    if (!gamepad.buttonEast.wasPressedThisFrame) continue;
+                    FocusedSign.CompleteReading();
+                    break;
+                }
+                return;
+            }
+
             if (FocusedSign != previousFocus || FocusedSign == null || GameplayInput.Interact == null
                 || !GameplayInput.Interact.WasPressedThisFrame()) return;
-            ToggleFocusedTutorial();
-        }
-
-        internal void ToggleFocusedTutorial()
-        {
-            if (FocusedSign == null) return;
-            if (tutorialVisible)
-            {
-                HideTutorial();
-                ShowInteractionPrompt();
-            }
-            else FocusedSign.Read();
+            FocusedSign.Read();
         }
 
         public void ShowInteractionPrompt()
@@ -98,20 +102,41 @@ namespace ShadowPath.Tutorial
             HideInteractionPrompt();
             titleLabel.text = title;
             bodyLabel.text = text;
+            if (closePromptLabel == null) CreateClosePrompt();
+            closePromptLabel.text = closePromptText;
+            closePromptLabel.gameObject.SetActive(true);
             tutorialPanel.SetActive(true);
-            tutorialVisible = true;
         }
 
         public void HideTutorial()
         {
             if (IsSafeWidget(tutorialPanel)) tutorialPanel.SetActive(false);
-            tutorialVisible = false;
+        }
+
+        private void CreateClosePrompt()
+        {
+            // Existing panels can use the footer without a scene migration.
+            var footer = new GameObject("ClosePrompt", typeof(RectTransform));
+            footer.layer = tutorialPanel.layer;
+            var rect = (RectTransform)footer.transform;
+            rect.SetParent(tutorialPanel.transform, false);
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.offsetMin = new Vector2(12f, 8f);
+            rect.offsetMax = new Vector2(-12f, 42f);
+            closePromptLabel = footer.AddComponent<TextMeshProUGUI>();
+            closePromptLabel.font = bodyLabel.font;
+            closePromptLabel.color = bodyLabel.color;
+            closePromptLabel.fontSize = 22f;
+            closePromptLabel.alignment = TextAlignmentOptions.Center;
+            closePromptLabel.raycastTarget = false;
         }
 
         private bool IsSafeWidget(GameObject widget) => widget != null && !transform.IsChildOf(widget.transform);
 
         private void OnDisable()
         {
+            if (FocusedSign != null) FocusedSign.CancelReading();
             HideTutorial();
             HideInteractionPrompt();
             FocusedSign = null;
