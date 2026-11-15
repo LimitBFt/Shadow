@@ -45,6 +45,22 @@ namespace ShadowPath.Shadow
         private bool warnedDetectionBufferFull;
         private bool detectionResultsComplete;
 
+        internal bool TryGetRuntimeProjection(ShadowCaster caster, out Transform light, out Transform plane)
+        {
+            light = null;
+            plane = null;
+            if (!isActiveAndEnabled || caster == null || !caster.isActiveAndEnabled
+                || !generatedShadows.TryGetValue(caster, out GeneratedShadow shadow)
+                || shadow == null || !shadow.isActiveAndEnabled || !shadow.HasValidGeometry)
+            {
+                return false;
+            }
+
+            light = shadow.ProjectionLight;
+            plane = shadow.ProjectionPlane;
+            return light != null && plane != null;
+        }
+
         internal bool MatchesCheckpointEnvironment(Transform light, Transform plane, Light projectionLight)
         {
             return isActiveAndEnabled && projectionPlane == plane
