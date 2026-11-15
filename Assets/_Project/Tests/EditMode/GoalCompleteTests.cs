@@ -2,8 +2,10 @@
 using System.Reflection;
 using NUnit.Framework;
 using ShadowPath.Player;
+using ShadowPath.Stars;
 using ShadowPath.Tutorial;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace ShadowPath.Tests.EditMode
 {
@@ -14,6 +16,7 @@ namespace ShadowPath.Tests.EditMode
         private CanvasGroup group;
         private GoalTrigger goal;
         private Collider playerCollider;
+        private StarCollectionManager manager;
 
         [SetUp]
         public void SetUp()
@@ -28,6 +31,8 @@ namespace ShadowPath.Tests.EditMode
             uiOwner.SetActive(true);
             goal = Child("Goal").AddComponent<GoalTrigger>();
             Set(goal, "goalCompleteUI", ui);
+            manager = Child("Star Manager").AddComponent<StarCollectionManager>();
+            Set(goal, "starCollectionManager", manager);
             GameObject player = Child("Inactive Player");
             player.SetActive(false);
             player.AddComponent<PlayerController>();
@@ -81,6 +86,36 @@ namespace ShadowPath.Tests.EditMode
             Enter(other.AddComponent<BoxCollider>());
             Assert.That(goal.Completed, Is.False);
             Assert.That(Get(ui, "completionRequested"), Is.False);
+        }
+
+        [Test]
+        public void Goal_RejectsInsufficientLargeStarsAndCompletesOnReentry()
+        {
+            Set(manager, "requiredLargeStars", 2);
+            var small = Child("Small Star").AddComponent<StarCollectible>();
+            var firstLarge = Child("First Large Star").AddComponent<StarCollectible>();
+            var secondLarge = Child("Second Large Star").AddComponent<StarCollectible>();
+            Set(firstLarge, "starType", StarCollectible.StarType.Large);
+            Set(secondLarge, "starType", StarCollectible.StarType.Large);
+            Set(firstLarge, "scoreValue", 250);
+
+            Assert.That(manager.TryRecordPickup(small), Is.True);
+            Assert.That(manager.TryRecordPickup(firstLarge), Is.True);
+            Assert.That(manager.TryRecordPickup(firstLarge), Is.False);
+            Assert.That(manager.Score, Is.EqualTo(350));
+            Assert.That(manager.CollectedSmallStars, Is.EqualTo(1));
+            Assert.That(manager.CollectedLargeStars, Is.EqualTo(1));
+
+            LogAssert.Expect(LogType.Warning,
+                "COLLECT MORE STARS. Assign a Star HUD with a Goal Hint Label to show this in-game.");
+            Enter(playerCollider);
+            Assert.That(goal.Completed, Is.False);
+            Assert.That(Get(ui, "completionRequested"), Is.False);
+
+            Assert.That(manager.TryRecordPickup(secondLarge), Is.True);
+            Enter(playerCollider);
+            Assert.That(goal.Completed, Is.True);
+            Assert.That(Get(ui, "completionRequested"), Is.True);
         }
 
         [Test]
