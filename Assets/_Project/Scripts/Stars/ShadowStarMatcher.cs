@@ -8,18 +8,28 @@ namespace ShadowPath.Stars
     [RequireComponent(typeof(StarCollectible))]
     public class ShadowStarMatcher : MonoBehaviour
     {
+        public enum MatchMode { OutlinePoints = 0, HoleCenter = 1 }
+
         private const int OutlinePointCount = 10;
         private const float DefaultCheckInterval = 0.05f;
 
         [SerializeField] private StarCollectible targetStar;
         [SerializeField] private ShadowSystem shadowSystem;
         [SerializeField] private ShadowCaster sourceShadowCaster;
+        [SerializeField] private MatchMode matchMode = MatchMode.OutlinePoints;
+        [Header("Hole Center")]
+        [SerializeField] private Transform sourceHoleCenter;
+        [SerializeField] private Transform targetCenterOverride;
+        [SerializeField, Min(0f)] private float matchRadius = 0.5f;
+
+        [Header("Outline Points")]
         [SerializeField, Tooltip("Ten points under the caster. Start at a named outer tip and alternate outer and inner points.")]
         private Transform[] sourceOutlinePoints = new Transform[OutlinePointCount];
         [SerializeField, Tooltip("Ten points in the same index order as the source points.")]
         private Transform[] targetOutlinePoints = new Transform[OutlinePointCount];
         [SerializeField, Min(0f)] private float matchTolerance = 0.1f;
-        [SerializeField, Min(0f)] private float matchHoldDuration = 0.3f;
+        [Header("Stability")]
+        [SerializeField, Min(0f)] private float matchHoldDuration = 0.2f;
         [SerializeField, Min(0.01f)] private float checkInterval = DefaultCheckInterval;
         [SerializeField, Tooltip("Phase 2 requires a permanent unlock. Keep this enabled.")]
         private bool unlockPermanently = true;
@@ -34,7 +44,13 @@ namespace ShadowPath.Stars
         [Header("Runtime Debug")]
         [SerializeField] private bool runtimeDebug;
         [SerializeField] private string matchStatus;
-        [SerializeField, Range(0f, 1f)] private float matchingProgress;
+        [SerializeField, InspectorName("Match Progress"), Range(0f, 1f)] private float matchingProgress;
+        [SerializeField, Tooltip("World-space projected position. Cleared when projection is invalid.")]
+        private Vector3 currentProjectedHoleCenter;
+        [SerializeField] private Vector3 targetCenter;
+        [SerializeField, Tooltip("Distance in Projection Plane units. -1 means unavailable.")]
+        private float centerDistance = -1f;
+        [SerializeField, TextArea] private string matchingMethod;
 
         private readonly Vector3[] projectedPositions = new Vector3[OutlinePointCount];
         private string setupError;
@@ -109,20 +125,31 @@ namespace ShadowPath.Stars
         private string GetMismatchReason(out bool hasProjectedOutline)
         {
             hasProjectedOutline = false;
+            if (runtimeDebug)
+            {
+                currentProjectedHoleCenter = targetCenter = Vector3.zero;
+                centerDistance = -1f;
+                matchingMethod = matchMode == MatchMode.HoleCenter
+                    ? "Geometric center matching. Physical light brightness is not sampled."
+                    : "Ordered outline point matching.";
+            }
             if (setupError != null) return setupError;
             if (!unlockPermanently) return "Enable Unlock Permanently for this star.";
             if (targetStar == null || sourceShadowCaster == null || shadowSystem == null)
                 return "Assign Target Star, Source Shadow Caster and Shadow System.";
-            if (sourceOutlinePoints?.Length != OutlinePointCount || targetOutlinePoints?.Length != OutlinePointCount)
-                return "Source and Target Outline Points must each have exactly ten entries.";
-            if (!IsNonnegativeFinite(matchTolerance) || !IsNonnegativeFinite(matchHoldDuration)
-                || !IsNonnegativeFinite(checkInterval))
+            if (!IsNonnegativeFinite(matchHoldDuration) || !IsNonnegativeFinite(checkInterval))
             {
-                return "Match Tolerance, Match Hold Duration and Check Interval must be finite nonnegative values.";
+                return "Match Hold Duration and Check Interval must be finite nonnegative values.";
             }
 
             if (!shadowSystem.TryGetRuntimeProjection(sourceShadowCaster, out Transform light, out Transform plane))
                 return "No valid runtime projection for this caster. Check the Shadow System, light and caster detection.";
+
+            if (matchMode == MatchMode.HoleCenter) return GetHoleCenterMismatchReason(light, plane);
+            if (matchMode != MatchMode.OutlinePoints) return "Unknown Match Mode.";
+            if (sourceOutlinePoints?.Length != OutlinePointCount || targetOutlinePoints?.Length != OutlinePointCount)
+                return "Source and Target Outline Points must each have exactly ten entries.";
+            if (!IsNonnegativeFinite(matchTolerance)) return "Match Tolerance must be a finite nonnegative value.";
 
             Vector3 lightPosition = light.position;
             Vector3 planeOrigin = plane.position;
@@ -172,6 +199,65 @@ namespace ShadowPath.Stars
         }
 
         private static bool IsNonnegativeFinite(float value) => value >= 0f && !float.IsInfinity(value);
+
+        private string GetHoleCenterMismatchReason(Transform light, Transform plane)
+        {
+            if (!targetStar.isActiveAndEnabled) return "Target Star is disabled or inactive.";
+            if (sourceHoleCenter == null || !sourceHoleCenter.gameObject.activeInHierarchy)
+                return "Source Hole Center is missing or inactive.";
+            if (!light.gameObject.activeInHierarchy || !plane.gameObject.activeInHierarchy)
+                return "Projection light or Projection Plane is inactive.";
+            if (!IsNonnegativeFinite(matchRadius)) return "Match Radius must be a finite nonnegative value.";
+
+            Vector3 holePosition = sourceHoleCenter.position;
+            Vector3 targetPosition = targetCenterOverride != null ? targetCenterOverride.position : targetStar.transform.position;
+            if (runtimeDebug) targetCenter = targetPosition;
+            if (!IsFinite(light.position) || !IsFinite(holePosition) || !IsFinite(targetPosition)
+                || !IsFinite(plane.position) || !IsFinite(plane.forward))
+            {
+                return "Projection input contains a non-finite position or plane normal.";
+            }
+
+            if (!ShadowProjectionCalculator.TryProjectPoint(light.position, holePosition, plane.position,
+                plane.forward, out Vector3 projectedPoint, out ShadowProjectionFailureReason failure))
+            {
+                return $"Hole Center projection failed ({failure}).";
+            }
+            if (!IsFinite(projectedPoint)) return "Projected Hole Center is non-finite.";
+
+            // TryProjectPoint accepts any forward intersection, including one before the source point.
+            // Require light -> hole -> wall, with the hole strictly inside that ray segment.
+            Vector3 lightToHole = holePosition - light.position;
+            float holeDistance = lightToHole.magnitude;
+            float wallDistance = Vector3.Dot(projectedPoint - light.position, lightToHole.normalized);
+            float epsilon = ShadowProjectionCalculator.DefaultEpsilon;
+            if (!IsNonnegativeFinite(holeDistance) || !IsNonnegativeFinite(wallDistance)
+                || holeDistance <= epsilon || wallDistance - holeDistance <= epsilon)
+            {
+                return "Hole Center must lie strictly between the projection light and Projection Plane.";
+            }
+
+            if (!ProjectionPlaneCoordinates.TryWorldToPlane2D(projectedPoint, plane.position, plane.right,
+                    plane.up, out Vector2 projected2D)
+                || !ProjectionPlaneCoordinates.TryWorldToPlane2D(targetPosition, plane.position, plane.right,
+                    plane.up, out Vector2 target2D))
+            {
+                return "Could not convert centers to Projection Plane coordinates.";
+            }
+
+            float distance = Vector2.Distance(projected2D, target2D);
+            if (!IsNonnegativeFinite(distance)) return "Center Distance is non-finite.";
+            if (runtimeDebug)
+            {
+                currentProjectedHoleCenter = projectedPoint;
+                centerDistance = distance;
+            }
+            return distance <= matchRadius ? null : "Center Distance exceeds Match Radius.";
+        }
+
+        private static bool IsFinite(Vector3 value) =>
+            IsNonnegativeFinite(Mathf.Abs(value.x)) && IsNonnegativeFinite(Mathf.Abs(value.y))
+            && IsNonnegativeFinite(Mathf.Abs(value.z));
 
         private void SetProjectedOutlineVisible(bool visible)
         {
