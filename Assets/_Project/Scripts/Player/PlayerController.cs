@@ -1,4 +1,5 @@
 using ShadowPath.Input;
+using ShadowPath.Lighting;
 using UnityEngine;
 
 namespace ShadowPath.Player
@@ -10,7 +11,11 @@ namespace ShadowPath.Player
         [SerializeField] private LayerMask groundMask;
         [SerializeField] private float moveSpeed = 5f;
         [SerializeField] private float jumpForce = 7f;
+        [SerializeField, Min(1f)] private float fallGravityMultiplier = 2.2f;
+        [SerializeField, Min(1f)] private float lowJumpGravityMultiplier = 2.5f;
+        [SerializeField, Min(0.01f)] private float maxFallSpeed = 18f;
         [SerializeField] private float groundCheckDistance = 0.08f;
+        [SerializeField] private LightGameplayArea lightGameplayArea;
         [SerializeField] private Vector3 pendingExternalDisplacement;
         [SerializeField] private Vector3 consumedExternalDisplacement;
 
@@ -18,6 +23,16 @@ namespace ShadowPath.Player
         private CapsuleCollider capsuleCollider;
         private float moveInput;
         private bool jumpRequested;
+        private bool jumpHeld;
+
+        internal LightGameplayArea GameplayArea => lightGameplayArea;
+
+        internal void ResetTransientMovement()
+        {
+            moveInput = 0f;
+            jumpRequested = jumpHeld = false;
+            pendingExternalDisplacement = consumedExternalDisplacement = Vector3.zero;
+        }
 
         private void Awake()
         {
@@ -32,6 +47,7 @@ namespace ShadowPath.Player
         private void Update()
         {
             moveInput = ReadMoveInput();
+            jumpHeld = GameplayInput.Jump?.IsPressed() ?? false;
 
             if (ReadJumpPressed())
             {
@@ -42,20 +58,55 @@ namespace ShadowPath.Player
         private void FixedUpdate()
         {
             bool grounded = IsGrounded();
+            // The Rigidbody moves in world XY, so use the in-plane part of ProjectionPlane Up.
+            Vector3 planeUp = lightGameplayArea != null ? lightGameplayArea.ProjectionPlaneUp : Vector3.up;
+            planeUp.z = 0f;
+            planeUp = planeUp.sqrMagnitude > 0.000001f ? planeUp.normalized : Vector3.up;
+
             Vector3 velocity = body.linearVelocity;
             velocity.x = moveInput * moveSpeed;
             velocity.z = 0f;
-            body.linearVelocity = velocity;
-
-            if (jumpRequested && grounded)
+            bool jumping = jumpRequested && grounded;
+            float upSpeed = Vector3.Dot(velocity, planeUp);
+            if (jumping)
             {
-                Vector3 jumpVelocity = body.linearVelocity;
-                jumpVelocity.y = Mathf.Max(0f, jumpVelocity.y);
-                body.linearVelocity = jumpVelocity;
-                body.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
+                velocity += planeUp * (jumpForce - upSpeed);
+                upSpeed = jumpForce;
             }
 
-            ConsumeExternalDisplacement();
+            float dt = Time.fixedDeltaTime;
+            Vector3 gravityStep = body.useGravity ? Physics.gravity * dt : Vector3.zero;
+            gravityStep.z = 0f;
+            velocity += gravityStep;
+
+            if (!grounded || jumping)
+            {
+                float gravityUpStep = Vector3.Dot(gravityStep, planeUp);
+                float nextUpSpeed = upSpeed + gravityUpStep;
+                float gravityMultiplier = nextUpSpeed <= 0f
+                    ? fallGravityMultiplier
+                    : (jumpHeld ? 1f : lowJumpGravityMultiplier);
+                float adjustedUpSpeed = Mathf.Max(-maxFallSpeed,
+                    upSpeed + gravityUpStep * gravityMultiplier);
+                velocity += planeUp * (adjustedUpSpeed - nextUpSpeed);
+            }
+
+            Vector3 externalDisplacement = ConsumeExternalDisplacement() - body.position;
+            if (lightGameplayArea != null)
+            {
+                lightGameplayArea.ConstrainPlayerMovement(body.position, externalDisplacement,
+                    velocity, dt, out externalDisplacement, out velocity);
+            }
+
+            // Unity still applies its built-in gravity step after FixedUpdate.
+            velocity -= gravityStep;
+            velocity.z = 0f;
+            body.linearVelocity = velocity;
+            if (externalDisplacement.sqrMagnitude > 0.0000000001f)
+            {
+                body.MovePosition(body.position + externalDisplacement);
+            }
+
             jumpRequested = false;
         }
 
@@ -70,16 +121,11 @@ namespace ShadowPath.Player
             pendingExternalDisplacement += displacement;
         }
 
-        private void ConsumeExternalDisplacement()
+        private Vector3 ConsumeExternalDisplacement()
         {
             consumedExternalDisplacement = pendingExternalDisplacement;
             pendingExternalDisplacement = Vector3.zero;
-            if (consumedExternalDisplacement == Vector3.zero)
-            {
-                return;
-            }
-
-            body.MovePosition(body.position + consumedExternalDisplacement);
+            return body.position + consumedExternalDisplacement;
         }
 
         private void OnDisable()
@@ -101,7 +147,7 @@ namespace ShadowPath.Player
                 QueryTriggerInteraction.Ignore);
         }
 
-        private void GetCapsuleCastPoints(out Vector3 point1, out Vector3 point2, out float radius)
+        internal void GetCapsuleCastPoints(out Vector3 point1, out Vector3 point2, out float radius)
         {
             Transform capsuleTransform = capsuleCollider.transform;
             Vector3 scale = capsuleTransform.lossyScale;

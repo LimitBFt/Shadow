@@ -35,6 +35,7 @@ namespace ShadowPath.Interaction
         public bool IsInteracting => state != InteractionState.Normal;
         public bool IsSelecting => state == InteractionState.Selecting;
         public bool IsRotatingObject => state == InteractionState.Rotating;
+        public InteractionStation CurrentStation => IsInteracting ? currentStation : null;
 
         private void Awake()
         {
@@ -49,6 +50,9 @@ namespace ShadowPath.Interaction
 
         private void Update()
         {
+            if (GameplayInput.GameplayCommandsBlocked) return;
+            // A cancel that exits an interaction must not also reset/read later in this frame.
+            if (IsInteracting) GameplayInput.BlockGameplayCommandsForFrame();
             switch (state)
             {
                 case InteractionState.Normal:
@@ -162,7 +166,7 @@ namespace ShadowPath.Interaction
             Debug.Log("Returned to selection mode", this);
         }
 
-        private void ExitInteractionMode()
+        internal void ExitInteractionMode()
         {
             if (state == InteractionState.Normal)
             {
@@ -187,6 +191,23 @@ namespace ShadowPath.Interaction
             Debug.Log("Exited selection mode", this);
         }
 
+        internal void ResetForRespawn(Vector3 position, Quaternion rotation)
+        {
+            ExitInteractionMode();
+            moveInputArmed = true;
+            if (nearbyStation != null)
+            {
+                Collider stationCollider = nearbyStation.GetComponent<Collider>();
+                Collider playerCollider = playerController != null ? playerController.GetComponent<Collider>() : null;
+                if (stationCollider == null || !stationCollider.enabled || playerCollider == null
+                    || !Physics.ComputePenetration(playerCollider, position, rotation,
+                        stationCollider, stationCollider.transform.position, stationCollider.transform.rotation,
+                        out _, out _))
+                    nearbyStation = null;
+            }
+            UpdateInteractionPrompt();
+        }
+
         private void OnDisable()
         {
             ExitInteractionMode();
@@ -208,7 +229,7 @@ namespace ShadowPath.Interaction
 
         private void HandleNormalInput()
         {
-            if (nearbyStation != null
+            if (Time.timeScale > 0f && nearbyStation != null
                 && GameplayInput.Interact != null
                 && GameplayInput.Interact.WasPressedThisFrame())
             {

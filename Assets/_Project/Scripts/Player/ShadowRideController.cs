@@ -192,6 +192,12 @@ namespace ShadowPath.Player
                 && shadow.CurrentHull2D.Count >= 3;
         }
 
+        internal void ResetForRespawn()
+        {
+            Detach();
+            if (probe != null) probe.ClearSupportState();
+        }
+
         private void Detach()
         {
             isAttached = false;

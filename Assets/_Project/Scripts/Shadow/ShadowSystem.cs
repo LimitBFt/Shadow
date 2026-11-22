@@ -43,6 +43,78 @@ namespace ShadowPath.Shadow
         private bool initialized;
         private bool warnedInvalidSourceLight;
         private bool warnedDetectionBufferFull;
+        private bool detectionResultsComplete;
+
+        internal bool TryGetRuntimeProjection(ShadowCaster caster, out Transform light, out Transform plane)
+        {
+            light = null;
+            plane = null;
+            if (!isActiveAndEnabled || caster == null || !caster.isActiveAndEnabled
+                || !generatedShadows.TryGetValue(caster, out GeneratedShadow shadow)
+                || shadow == null || !shadow.isActiveAndEnabled || !shadow.HasValidGeometry)
+            {
+                return false;
+            }
+
+            light = shadow.ProjectionLight;
+            plane = shadow.ProjectionPlane;
+            return light != null && plane != null;
+        }
+
+        internal bool MatchesCheckpointEnvironment(Transform light, Transform plane, Light projectionLight)
+        {
+            return isActiveAndEnabled && projectionPlane == plane
+                && GetRuntimeLightTransform() == light
+                && (!autoDetectShadowCasters || sourceLight == projectionLight);
+        }
+
+        internal bool TryRebuildForCheckpoint(out string failureReason)
+        {
+            failureReason = null;
+            if (!isActiveAndEnabled || projectionPlane == null || GetRuntimeLightTransform() == null)
+            {
+                failureReason = "ShadowSystem is inactive or has missing projection references.";
+                return false;
+            }
+            if (!initialized) InitializeShadows();
+            if (!initialized)
+            {
+                failureReason = "ShadowSystem initialization failed.";
+                return false;
+            }
+            if (autoDetectShadowCasters)
+            {
+                DetectShadowCastersInRange();
+                if (!detectionResultsComplete)
+                {
+                    failureReason = "ShadowCaster detection may be incomplete. Increase Detection Buffer Size.";
+                    return false;
+                }
+            }
+            IEnumerable<ShadowCaster> requiredCasters = autoDetectShadowCasters
+                ? (IEnumerable<ShadowCaster>)detectedShadowCasters : shadowCasters;
+            foreach (ShadowCaster caster in requiredCasters)
+            {
+                if (caster != null && generatedShadows.ContainsKey(caster)) continue;
+                failureReason = "A configured or detected ShadowCaster has no generated collider.";
+                return false;
+            }
+            foreach (KeyValuePair<ShadowCaster, GeneratedShadow> pair in generatedShadows)
+            {
+                GeneratedShadow shadow = pair.Value;
+                int previousVersion = shadow != null ? shadow.GeometryVersion : -1;
+                if (shadow == null || !shadow.Rebuild() || !shadow.HasCurrentCollider
+                    || shadow.GeometryVersion == previousVersion)
+                {
+                    failureReason = "GeneratedShadow mesh/collider rebuild failed.";
+                    return false;
+                }
+                StoreCasterTransformSnapshot(pair.Key);
+            }
+            lastLightPosition = GetRuntimeLightTransform().position;
+            detectionTimer = 0f;
+            return true;
+        }
 
         private void OnValidate()
         {
@@ -180,18 +252,18 @@ namespace ShadowPath.Shadow
 
             if (sourceLight == null)
             {
-                WarnInvalidSourceLight("ShadowSystem requires a Point Light sourceLight for automatic ShadowCaster detection.");
+                WarnInvalidSourceLight("ShadowSystem requires a Point or Spot sourceLight for automatic ShadowCaster detection.");
                 return null;
             }
 
-            if (sourceLight.type != LightType.Point)
+            if (sourceLight.type != LightType.Point && sourceLight.type != LightType.Spot)
             {
-                WarnInvalidSourceLight("ShadowSystem automatic ShadowCaster detection only supports Point Light.");
+                WarnInvalidSourceLight("ShadowSystem automatic ShadowCaster detection only supports Point or Spot Light.");
                 return null;
             }
 
             warnedInvalidSourceLight = false;
-            return sourceLight.transform;
+            return lightSource != null ? lightSource : sourceLight.transform;
         }
 
         private void WarnInvalidSourceLight(string message)
@@ -217,7 +289,7 @@ namespace ShadowPath.Shadow
             {
                 if (!generatedShadows.ContainsKey(caster))
                 {
-                    TryAddGeneratedShadow(caster, casterIndex, sourceLight.transform);
+                    TryAddGeneratedShadow(caster, casterIndex, GetRuntimeLightTransform());
                 }
 
                 casterIndex++;
@@ -228,7 +300,8 @@ namespace ShadowPath.Shadow
 
         private bool TryCollectShadowCastersInRange()
         {
-            if (sourceLight == null || sourceLight.type != LightType.Point)
+            detectionResultsComplete = false;
+            if (sourceLight == null || (sourceLight.type != LightType.Point && sourceLight.type != LightType.Spot))
             {
                 return false;
             }
@@ -236,11 +309,12 @@ namespace ShadowPath.Shadow
             EnsureDetectionBuffer();
             detectedShadowCasters.Clear();
             int hitCount = Physics.OverlapSphereNonAlloc(
-                sourceLight.transform.position,
+                GetRuntimeLightTransform().position,
                 sourceLight.range,
                 detectionBuffer,
                 shadowCasterMask,
                 QueryTriggerInteraction.Ignore);
+            detectionResultsComplete = hitCount < detectionBuffer.Length;
 
             if (hitCount == detectionBuffer.Length && !warnedDetectionBufferFull)
             {
@@ -374,7 +448,7 @@ namespace ShadowPath.Shadow
                 return lightSource;
             }
 
-            if (sourceLight != null && sourceLight.type == LightType.Point)
+            if (sourceLight != null && (sourceLight.type == LightType.Point || sourceLight.type == LightType.Spot))
             {
                 return sourceLight.transform;
             }
@@ -567,6 +641,7 @@ namespace ShadowPath.Shadow
                 GameObject shadowObject = pair.Value.gameObject;
                 if (Application.isPlaying)
                 {
+                    shadowObject.SetActive(false);
                     Destroy(shadowObject);
                 }
                 else
@@ -630,6 +705,7 @@ namespace ShadowPath.Shadow
             GameObject shadowObject = generatedShadow.gameObject;
             if (Application.isPlaying)
             {
+                shadowObject.SetActive(false);
                 Destroy(shadowObject);
             }
             else
